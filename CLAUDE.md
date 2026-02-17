@@ -16,8 +16,8 @@ Lexora Console is a lightweight single-page application built with vanilla JavaS
 Serves static files at `http://localhost:9009`. No build step required.
 
 **External services** (must be running separately):
-- RSS service: `http://localhost:9001`
-- KB Chat service: `http://localhost:8000`
+- Lexora Feed service: `http://localhost:9001`
+- Lexora Mind service: `http://localhost:9002`
 
 There are no tests, linting, or build tools configured.
 
@@ -26,8 +26,8 @@ There are no tests, linting, or build tools configured.
 **Module system:** The app dynamically loads modules defined in the `MODULES` array in `index.html`. Each module is an ES6 file in `modules/` that exports an `init(container, apiBase)` function. The container is a DOM element to render into; apiBase is the module's backend URL.
 
 **Current modules:**
-- `modules/rss.js` — RSS feed reader. Fetches from `GET {apiBase}/rss?range=...`, filters by date range and feed name. State is component-scoped (closure variables).
-- `modules/kb-chat.js` — Knowledge base chat. Posts questions to `POST {apiBase}/api/v1/query`, displays answers with source links. Maintains message history in memory.
+- `modules/feed.js` — Lexora Feed: RSS feed reader. Fetches from `GET {apiBase}/rss?range=...`, filters by date range and feed name. State is component-scoped (closure variables).
+- `modules/mind.js` — Lexora Mind: Knowledge base chat. Posts questions to `POST {apiBase}/api/v1/query`, displays answers with source links. Maintains message history in memory.
 
 **Navigation:** Sidebar buttons switch between modules. No URL routing or history API — active module is tracked in a local variable in `index.html`.
 
