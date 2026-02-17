@@ -20,16 +20,16 @@ func Setup(dataDir string) (*Loggers, error) {
 		return nil, err
 	}
 
-	errFile, err := openLog(filepath.Join(dataDir, "errors.log"))
+	errFile, err := openLog(filepath.Join(dataDir, "logs", "errors.log"))
 	if err != nil {
 		return nil, err
 	}
-	warnFile, err := openLog(filepath.Join(dataDir, "warnings.log"))
+	warnFile, err := openLog(filepath.Join(dataDir, "logs", "warnings.log"))
 	if err != nil {
 		errFile.Close()
 		return nil, err
 	}
-	infoFile, err := openLog(filepath.Join(dataDir, "info.log"))
+	infoFile, err := openLog(filepath.Join(dataDir, "logs", "info.log"))
 	if err != nil {
 		errFile.Close()
 		warnFile.Close()
