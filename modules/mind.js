@@ -50,7 +50,7 @@ export function init(container, apiBase) {
     div.className = `chat-message ${isUser ? "chat-message-user" : "chat-message-assistant"}`;
 
     let html = `
-      <div class="chat-role">${isUser ? "You" : "KB"}</div>
+      <div class="chat-role">${isUser ? "You" : "Lexora Mind"}</div>
       <div class="chat-text">${escapeHtml(msg.text)}</div>
     `;
 
@@ -85,7 +85,7 @@ export function init(container, apiBase) {
     div.id = "chat-loading";
     div.className = "chat-message chat-message-assistant";
     div.innerHTML = `
-      <div class="chat-role">KB</div>
+      <div class="chat-role">Lexora Mind</div>
       <div class="chat-text text-gray-400">Thinking...</div>
     `;
     history.appendChild(div);
