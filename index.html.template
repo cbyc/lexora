@@ -32,14 +32,14 @@
         id: "rss",
         label: "Feed",
         icon: "\uD83D\uDCF0",
-        apiBase: "",
+        apiBase: "${FEED_API_BASE}",
         module: "modules/feed.js"
       },
       {
         id: "kb-chat",
         label: "Mind",
         icon: "\uD83D\uDCAC",
-        apiBase: "",
+        apiBase: "${MIND_API_BASE}",
         module: "modules/mind.js"
       }
     ];
