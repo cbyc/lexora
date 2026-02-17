@@ -1,0 +1,113 @@
+/* Zebra striping for post rows */
+.post-row:nth-child(even) {
+  background-color: #f9fafb; /* gray-50 */
+}
+.post-row:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+/* Post title truncation */
+.post-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Feed name fixed width */
+.feed-name {
+  min-width: 8rem;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Warning banner */
+.warning-banner {
+  background-color: #fef3c7; /* amber-100 */
+  border: 1px solid #fcd34d; /* amber-300 */
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #92400e; /* amber-800 */
+}
+
+.warning-banner summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* KB Chat styles */
+.chat-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 5rem);
+}
+
+.chat-history {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+.chat-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.chat-message {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.chat-message-user {
+  margin-left: auto;
+  background-color: #dbeafe; /* blue-100 */
+  border-bottom-right-radius: 0.25rem;
+}
+
+.chat-message-assistant {
+  margin-right: auto;
+  background-color: #f3f4f6; /* gray-100 */
+  border-bottom-left-radius: 0.25rem;
+}
+
+.chat-message-error {
+  background-color: #fee2e2; /* red-100 */
+}
+
+.chat-role {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280; /* gray-500 */
+  margin-bottom: 0.25rem;
+}
+
+.chat-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-sources {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.8125rem;
+}
+
+.chat-sources ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.chat-sources li {
+  font-size: 0.8125rem;
+}

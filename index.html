@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Knowledge Base Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="styles/app.css">
+</head>
+<body class="bg-gray-50 text-gray-900 h-screen flex">
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="w-56 bg-gray-900 text-gray-300 flex flex-col shrink-0">
+    <div class="px-4 py-5 text-white font-semibold text-sm border-b border-gray-700">
+      LEXORA<br/>
+    </div>
+    <ul id="nav-list" class="flex-1 py-2"></ul>
+  </nav>
+
+  <!-- Main content -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center">
+      <h1 id="module-title" class="text-lg font-semibold text-gray-700"></h1>
+    </header>
+    <main id="content" class="flex-1 overflow-y-auto p-6"></main>
+  </div>
+
+  <script>
+    const MODULES = [
+      {
+        id: "rss",
+        label: "RSS",
+        icon: "\uD83D\uDCF0",
+        apiBase: "http://localhost:9001",
+        module: "modules/rss.js"
+      },
+      {
+        id: "kb-chat",
+        label: "KB Chat",
+        icon: "\uD83D\uDCAC",
+        apiBase: "http://localhost:8000",
+        module: "modules/kb-chat.js"
+      }
+    ];
+
+    const navList = document.getElementById("nav-list");
+    const content = document.getElementById("content");
+    const moduleTitle = document.getElementById("module-title");
+    let activeModuleId = null;
+
+    // Build nav items
+    MODULES.forEach((mod) => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <button data-module="${mod.id}"
+                class="nav-btn w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-gray-800 transition-colors">
+          <span class="text-lg">${mod.icon}</span>
+          <span class="text-sm">${mod.label}</span>
+        </button>
+      `;
+      li.querySelector("button").addEventListener("click", () => loadModule(mod));
+      navList.appendChild(li);
+    });
+
+    async function loadModule(mod) {
+      // Update active state
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.classList.toggle("bg-gray-800", btn.dataset.module === mod.id);
+        btn.classList.toggle("text-white", btn.dataset.module === mod.id);
+      });
+
+      moduleTitle.textContent = mod.label;
+      activeModuleId = mod.id;
+      content.innerHTML = '<p class="text-gray-400">Loading...</p>';
+
+      try {
+        const module = await import(`./${mod.module}`);
+        content.innerHTML = "";
+        module.init(content, mod.apiBase);
+      } catch (err) {
+        content.innerHTML = `<p class="text-red-500">Failed to load module: ${err.message}</p>`;
+      }
+    }
+
+    // Auto-load first module
+    if (MODULES.length > 0) {
+      loadModule(MODULES[0]);
+    }
+  </script>
+</body>
+</html>
