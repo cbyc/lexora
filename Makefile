@@ -1,0 +1,32 @@
+IMAGE_NAME := lexora-feed
+RSS_HOST := 0.0.0.0
+RSS_PORT := 9001
+RSS_DATA_DIR := ./data
+RSS_MAX_POSTS_PER_FEED := 50
+RSS_FETCH_TIMEOUT_SEC := 10
+RSS_DEFAULT_RANGE := last_month
+
+.PHONY: build run-image run
+
+build:
+	docker build -t $(IMAGE_NAME) .
+
+run-image: build
+	docker run --rm -d -p $(RSS_PORT):$(RSS_PORT) \
+		-v $(PWD)/data:/data \
+		-e RSS_HOST=$(RSS_HOST) \
+		-e RSS_PORT=$(RSS_PORT) \
+		-e RSS_DATA_DIR=/data \
+		-e RSS_MAX_POSTS_PER_FEED=$(RSS_MAX_POSTS_PER_FEED) \
+		-e RSS_FETCH_TIMEOUT_SEC=$(RSS_FETCH_TIMEOUT_SEC) \
+		-e RSS_DEFAULT_RANGE=$(RSS_DEFAULT_RANGE) \
+		$(IMAGE_NAME)
+
+run:
+	RSS_HOST=$(RSS_HOST) \
+	RSS_PORT=$(RSS_PORT) \
+	RSS_DATA_DIR=$(RSS_DATA_DIR) \
+	RSS_MAX_POSTS_PER_FEED=$(RSS_MAX_POSTS_PER_FEED) \
+	RSS_FETCH_TIMEOUT_SEC=$(RSS_FETCH_TIMEOUT_SEC) \
+	RSS_DEFAULT_RANGE=$(RSS_DEFAULT_RANGE) \
+	go run .
