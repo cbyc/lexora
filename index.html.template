@@ -3,27 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Knowledge Base Assistant</title>
+  <title>Lexora</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <link rel="stylesheet" href="styles/app.css">
 </head>
-<body class="bg-gray-50 text-gray-900 h-screen flex">
+<body>
 
   <!-- Sidebar -->
-  <nav id="sidebar" class="w-56 bg-gray-900 text-gray-300 flex flex-col shrink-0">
-    <div class="px-4 py-5 text-white font-semibold text-sm border-b border-gray-700">
-      LEXORA<br/>
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-wordmark">Lexora</span>
     </div>
-    <ul id="nav-list" class="flex-1 py-2"></ul>
+    <ul id="nav-list" class="sidebar-nav"></ul>
+    <div class="sidebar-footer">
+      <span class="sidebar-footer-text">&copy; Mehdi Khajeh</span>
+    </div>
   </nav>
 
   <!-- Main content -->
-  <div class="flex-1 flex flex-col min-w-0">
-    <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center">
-      <h1 id="module-title" class="text-lg font-semibold text-gray-700"></h1>
+  <div id="main-wrapper">
+    <header id="main-header">
+      <h1 id="module-title"></h1>
     </header>
-    <main id="content" class="flex-1 overflow-y-auto p-6"></main>
+    <main id="content"></main>
   </div>
 
   <script>
@@ -31,14 +37,14 @@
       {
         id: "rss",
         label: "Feed",
-        icon: "\uD83D\uDCF0",
+        subtitle: "RSS Reader",
         apiBase: "${FEED_API_BASE}",
         module: "modules/feed.js"
       },
       {
         id: "kb-chat",
         label: "Mind",
-        icon: "\uD83D\uDCAC",
+        subtitle: "Knowledge Base",
         apiBase: "${MIND_API_BASE}",
         module: "modules/mind.js"
       }
@@ -53,10 +59,9 @@
     MODULES.forEach((mod) => {
       const li = document.createElement("li");
       li.innerHTML = `
-        <button data-module="${mod.id}"
-                class="nav-btn w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-gray-800 transition-colors">
-          <span class="text-lg">${mod.icon}</span>
-          <span class="text-sm">${mod.label}</span>
+        <button data-module="${mod.id}" class="nav-item">
+          <span class="nav-item-label">${mod.label}</span>
+          <span class="nav-item-sub">${mod.subtitle}</span>
         </button>
       `;
       li.querySelector("button").addEventListener("click", () => loadModule(mod));
@@ -65,21 +70,24 @@
 
     async function loadModule(mod) {
       // Update active state
-      document.querySelectorAll(".nav-btn").forEach((btn) => {
-        btn.classList.toggle("bg-gray-800", btn.dataset.module === mod.id);
-        btn.classList.toggle("text-white", btn.dataset.module === mod.id);
+      document.querySelectorAll(".nav-item").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.module === mod.id);
       });
 
       moduleTitle.textContent = mod.label;
       activeModuleId = mod.id;
-      content.innerHTML = '<p class="text-gray-400">Loading...</p>';
+      content.innerHTML = '<p class="loading-text">Loading\u2026</p>';
 
       try {
         const module = await import(`./${mod.module}`);
         content.innerHTML = "";
+        // Trigger fade-in animation
+        content.classList.remove("content-fade-in");
+        void content.offsetWidth;
+        content.classList.add("content-fade-in");
         module.init(content, mod.apiBase);
       } catch (err) {
-        content.innerHTML = `<p class="text-red-500">Failed to load module: ${err.message}</p>`;
+        content.innerHTML = `<p class="error-text">Failed to load module: ${err.message}</p>`;
       }
     }
 

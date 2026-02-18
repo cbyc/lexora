@@ -7,21 +7,18 @@ export function init(container, apiBase) {
     <div class="chat-wrapper">
       <div id="chat-history" class="chat-history"></div>
       <div class="chat-input-area">
-        <div class="flex gap-3">
-          <div class="flex-1 relative">
+        <div class="chat-input-row">
+          <div class="chat-textarea-wrap">
             <textarea id="chat-input"
-                      class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      class="chat-textarea"
                       rows="3"
-                      placeholder="Ask a question about your knowledge base..."
+                      placeholder="Ask your knowledge base\u2026"
                       maxlength="${MAX_QUESTION_LENGTH}"></textarea>
-            <span id="char-count" class="absolute bottom-2 right-3 text-xs text-gray-400"></span>
+            <span id="char-count" class="chat-char-count"></span>
           </div>
-          <button id="chat-send"
-                  class="self-end px-5 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0">
-            Send
-          </button>
+          <button id="chat-send" class="chat-send-btn" disabled>Send</button>
         </div>
-        <p class="text-xs text-gray-400 mt-1">Press Ctrl+Enter to send</p>
+        <p class="chat-hint">\u2318\u21B5 &nbsp;to send</p>
       </div>
     </div>
   `;
@@ -35,47 +32,53 @@ export function init(container, apiBase) {
     const len = input.value.length;
     if (len > MAX_QUESTION_LENGTH * 0.8) {
       charCount.textContent = `${len}/${MAX_QUESTION_LENGTH}`;
-      charCount.classList.toggle("text-red-500", len > MAX_QUESTION_LENGTH);
-      charCount.classList.toggle("text-gray-400", len <= MAX_QUESTION_LENGTH);
+      charCount.classList.toggle("warn", len > MAX_QUESTION_LENGTH);
     } else {
       charCount.textContent = "";
+      charCount.classList.remove("warn");
     }
     sendBtn.disabled = len === 0 || len > MAX_QUESTION_LENGTH;
   }
 
   function renderMessage(msg) {
-    const div = document.createElement("div");
     const isUser = msg.role === "user";
+    const div = document.createElement("div");
+    div.className = `chat-msg ${isUser ? "chat-msg-user" : "chat-msg-assistant"}${msg.isError ? " chat-msg-error" : ""}`;
 
-    div.className = `chat-message ${isUser ? "chat-message-user" : "chat-message-assistant"}`;
+    if (isUser) {
+      div.innerHTML = `
+        <div class="chat-bubble">
+          <div class="chat-msg-text">${escapeHtml(msg.text)}</div>
+        </div>
+      `;
+    } else {
+      let sourcesHtml = "";
+      if (msg.sources && msg.sources.length > 0) {
+        const items = msg.sources
+          .map((src) => {
+            if (src.startsWith("http://") || src.startsWith("https://")) {
+              return `<li><a href="${escapeHtml(src)}" target="_blank" rel="noopener noreferrer">${escapeHtml(src)}</a></li>`;
+            }
+            return `<li><span class="source-text">${escapeHtml(src)}</span></li>`;
+          })
+          .join("");
+        sourcesHtml = `
+          <div class="chat-sources">
+            <div class="chat-sources-label">Sources</div>
+            <ul class="chat-sources-list">${items}</ul>
+          </div>
+        `;
+      }
 
-    let html = `
-      <div class="chat-role">${isUser ? "You" : "Lexora Mind"}</div>
-      <div class="chat-text">${escapeHtml(msg.text)}</div>
-    `;
-
-    if (msg.sources && msg.sources.length > 0) {
-      const sourceItems = msg.sources
-        .map((src) => {
-          if (src.startsWith("http://") || src.startsWith("https://")) {
-            return `<li><a href="${escapeHtml(src)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 hover:underline break-all">${escapeHtml(src)}</a></li>`;
-          }
-          return `<li class="text-gray-600 break-all">${escapeHtml(src)}</li>`;
-        })
-        .join("");
-      html += `
-        <div class="chat-sources">
-          <span class="font-medium text-gray-500">Sources:</span>
-          <ul class="mt-1 space-y-0.5">${sourceItems}</ul>
+      div.innerHTML = `
+        <div class="chat-bubble">
+          <div class="chat-msg-label">Lexora Mind</div>
+          <div class="chat-msg-text">${escapeHtml(msg.text)}</div>
+          ${sourcesHtml}
         </div>
       `;
     }
 
-    if (msg.isError) {
-      div.classList.add("chat-message-error");
-    }
-
-    div.innerHTML = html;
     history.appendChild(div);
     history.scrollTop = history.scrollHeight;
   }
@@ -83,10 +86,16 @@ export function init(container, apiBase) {
   function addLoadingIndicator() {
     const div = document.createElement("div");
     div.id = "chat-loading";
-    div.className = "chat-message chat-message-assistant";
+    div.className = "chat-msg chat-msg-assistant";
     div.innerHTML = `
-      <div class="chat-role">Lexora Mind</div>
-      <div class="chat-text text-gray-400">Thinking...</div>
+      <div class="chat-bubble">
+        <div class="chat-msg-label">Lexora Mind</div>
+        <div class="chat-loading-dots">
+          <div class="chat-loading-dot"></div>
+          <div class="chat-loading-dot"></div>
+          <div class="chat-loading-dot"></div>
+        </div>
+      </div>
     `;
     history.appendChild(div);
     history.scrollTop = history.scrollHeight;
