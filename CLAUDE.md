@@ -9,39 +9,56 @@ Lexora Feed is a lightweight Go RSS/Atom feed aggregation service. It fetches po
 ## Commands
 
 ```bash
-# Run
+# Run locally
 go run .
 
-# Build
+# Build binary
 go build -o lexora-feed
 
 # Unit tests
 go test ./...
 
-# Integration tests (require running server)
+# Run a single test
+go test ./api/ -run TestGetRSS_Success
+
+# Integration tests (spin up a real server internally — no running server needed)
 go test -tags integration ./...
+
+# Makefile targets (env vars default via ?= — override by setting them beforehand)
+make run-local        # runs go run . with env vars
+make build-image      # builds Docker image
+make run-container    # builds image and runs container on :9001
 ```
 
 ## Architecture
 
-**Entry point:** `main.go` — loads config, initializes logging, seeds feeds file, registers routes, starts HTTP server with graceful shutdown (SIGINT/SIGTERM).
+**Entry point:** [main.go](main.go) — loads config, initializes logging, seeds feeds file, registers routes, starts HTTP server with graceful shutdown (SIGINT/SIGTERM).
 
 **Modules:**
-- `config/` — Configuration loaded via viper with cascade: defaults → `config.yaml` → env vars (prefix `RSS_`, e.g. `RSS_PORT=8080`)
-- `feed/` — Feed fetching and storage
-  - `fetcher.go` — Parallel feed fetching with goroutines+WaitGroup, context-aware timeouts
-  - `store.go` — YAML-based feed list management (`data/feeds.yaml`), duplicate detection, seed data
-- `api/` — HTTP handlers registered on `http.ServeMux`
-  - `rss.go` — `GET /rss` (fetch posts with range filtering), `PUT /rss` (add new feed with validation)
-  - `cors.go` — CORS middleware (allow all origins, GET/PUT/OPTIONS)
-- `logging/` — Structured slog loggers writing to separate files (`data/logs/{errors,warnings,info}.log`)
+- [config/](config/) — Viper config cascade: defaults → `config.yaml` → env vars (prefix `RSS_`, e.g. `RSS_PORT=8080`). Config file errors fall back to defaults rather than failing.
+- [feed/](feed/) — Feed fetching and storage
+  - [fetcher.go](feed/fetcher.go) — Parallel fetching via goroutines+WaitGroup; per-feed context timeout. Posts sorted newest-first. Feed name overridden with user-configured name (not the feed's own title).
+  - [store.go](feed/store.go) — YAML-based feed list (`data/feeds.yaml`), duplicate detection by URL, seed data (`SeedFeeds`). `InitFeedsFile` is a no-op if the file already exists.
+- [api/](api/) — Handlers registered on `http.ServeMux`
+  - [rss.go](api/rss.go) — `GET /rss` (fetch + date filter), `PUT /rss` (validate feed URL before adding). All routes dispatched via a single `mux.HandleFunc("/rss", ...)`.
+  - [cors.go](api/cors.go) — CORS middleware wrapping the mux (allow all origins, GET/PUT/OPTIONS).
+- [logging/](logging/) — Structured `slog` loggers writing to `{dataDir}/errors.log`, `{dataDir}/warnings.log`, `{dataDir}/info.log`.
 
 **API:**
-- `GET /rss?range=last_month` — Preset ranges: today, last_week, last_month, last_3_months, last_6_months, last_year. Also supports explicit `from`/`to` RFC3339 timestamps.
-- `PUT /rss` — Body: `{"name": "...", "url": "..."}`. Returns 201/400/409/422.
+- `GET /rss?range=last_month` — Preset ranges: `today`, `last_week`, `last_month`, `last_3_months`, `last_6_months`, `last_year`. Explicit `from`/`to` RFC3339 params take precedence over `range`. When all feeds fail, returns 200 with empty array and `X-Feed-Errors: all-feeds-failed` header.
+- `PUT /rss` — Body: `{"name": "...", "url": "..."}`. Validates the URL is a real feed before saving. Returns 201/400/409/422.
 
-**Data:** Feed list stored in `data/feeds.yaml`. Logs in `data/logs/`.
+**Data:** Feed list at `data/feeds.yaml`. Logs in `data/` (same level, not a subdirectory).
 
 ## Configuration Defaults
 
-Host: `localhost`, Port: `9001`, DataDir: `./data`, MaxPostsPerFeed: 50, FetchTimeoutSec: 10, DefaultRange: `last_month`
+| Key | Default | Env var |
+|-----|---------|---------|
+| Host | `localhost` | `RSS_HOST` |
+| Port | `9001` | `RSS_PORT` |
+| DataDir | `./data` | `RSS_DATA_DIR` |
+| MaxPostsPerFeed | `50` | `RSS_MAX_POSTS_PER_FEED` |
+| FetchTimeoutSec | `10` | `RSS_FETCH_TIMEOUT_SEC` |
+| DefaultRange | `last_month` | `RSS_DEFAULT_RANGE` |
+
+The Makefile uses `?=` for all vars, so any env var set in the shell before running `make` will be respected.
