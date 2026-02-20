@@ -82,19 +82,6 @@ func TestSaveFeeds_WritesCorrectYAML(t *testing.T) {
 	}
 }
 
-func TestSaveFeeds_CreatesParentDirs(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "nested", "deep", "feeds.yaml")
-
-	err := SaveFeeds(path, []Feed{{Name: "X", URL: "https://x.com"}})
-	if err != nil {
-		t.Fatalf("SaveFeeds failed: %v", err)
-	}
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("expected file to be created")
-	}
-}
-
 func TestAddFeed_NewFeed(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "feeds.yaml")
@@ -127,7 +114,7 @@ func TestAddFeed_DuplicateURL(t *testing.T) {
 
 func TestAddFeed_CreatesFileIfMissing(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "data", "feeds.yaml")
+	path := filepath.Join(dir, "feeds.yaml")
 
 	err := AddFeed(path, Feed{Name: "First", URL: "https://first.com"})
 	if err != nil {
@@ -137,5 +124,101 @@ func TestAddFeed_CreatesFileIfMissing(t *testing.T) {
 	feeds, _ := LoadFeeds(path)
 	if len(feeds) != 1 {
 		t.Fatalf("expected 1 feed, got %d", len(feeds))
+	}
+}
+
+func TestEnsureDataFile_CreatesNewFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "feeds.yaml")
+
+	err := EnsureDataFile(path)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("file was not created: %v", err)
+	}
+}
+
+func TestEnsureDataFile_MissingDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonexistent", "feeds.yaml")
+
+	err := EnsureDataFile(path)
+	if err == nil {
+		t.Fatal("expected error for missing parent directory, got nil")
+	}
+}
+
+func TestEnsureDataFile_ExistingFilePreservesContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "feeds.yaml")
+	content := []byte("feeds:\n  - url: http://example.com/feed\n")
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := EnsureDataFile(path)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("content = %q, want %q", got, content)
+	}
+}
+
+func TestEnsureDataFile_ReadOnlyFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses file permissions")
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "feeds.yaml")
+	if err := os.WriteFile(path, []byte("data"), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	err := EnsureDataFile(path)
+	if err == nil {
+		t.Fatal("expected permission error for read-only file, got nil")
+	}
+}
+
+func TestEnsureDataFile_NoReadPermission(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses file permissions")
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "feeds.yaml")
+	if err := os.WriteFile(path, []byte("data"), 0200); err != nil {
+		t.Fatal(err)
+	}
+
+	err := EnsureDataFile(path)
+	if err == nil {
+		t.Fatal("expected permission error for write-only file, got nil")
+	}
+}
+
+func TestEnsureDataFile_ReadOnlyDirectory(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	// Restore write permission so TempDir cleanup can remove the directory
+	t.Cleanup(func() { os.Chmod(dir, 0755) })
+
+	path := filepath.Join(dir, "feeds.yaml")
+	err := EnsureDataFile(path)
+	if err == nil {
+		t.Fatal("expected permission error for read-only directory, got nil")
 	}
 }

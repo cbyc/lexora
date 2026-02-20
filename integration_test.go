@@ -20,8 +20,7 @@ import (
 )
 
 func TestIntegration_Smoke(t *testing.T) {
-	dir := t.TempDir()
-	dataDir := filepath.Join(dir, "data")
+	dataDir := t.TempDir()
 
 	cfg := &config.Config{
 		Host:            "localhost",
@@ -30,10 +29,6 @@ func TestIntegration_Smoke(t *testing.T) {
 		FetchTimeoutSec: 10,
 		DataFile:        filepath.Join(dataDir, "feeds.yaml"),
 		DefaultRange:    "last_month",
-	}
-
-	if err := feed.EnsureDataDir(dataDir); err != nil {
-		t.Fatalf("EnsureDataDir: %v", err)
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

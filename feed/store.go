@@ -3,7 +3,6 @@ package feed
 import (
 	"errors"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -39,9 +38,6 @@ func LoadFeeds(path string) ([]Feed, error) {
 }
 
 func SaveFeeds(path string, feeds []Feed) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
 	ff := feedsFile{Feeds: feeds}
 	data, err := yaml.Marshal(&ff)
 	if err != nil {
@@ -64,6 +60,25 @@ func AddFeed(path string, feed Feed) error {
 	return SaveFeeds(path, existing)
 }
 
-func EnsureDataDir(dataDir string) error {
-	return os.MkdirAll(dataDir, 0755)
+func EnsureDataFile(path string) error {
+	// ensure the file exists and can be read
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			_, err := os.Create(path)
+			return err
+		}
+		return err
+	}
+
+	// verify write permission is granted
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if err != nil {
+		return err
+	}
+	return nil
 }

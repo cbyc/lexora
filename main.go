@@ -12,6 +12,7 @@ import (
 
 	"lexora-feed/api"
 	"lexora-feed/config"
+	"lexora-feed/feed"
 )
 
 func main() {
@@ -21,6 +22,11 @@ func main() {
 	cfg, cfgErr := config.Load("")
 	if cfgErr != nil {
 		logger.Warn("config.yaml malformed, using defaults", "error", cfgErr.Error())
+	}
+
+	if err := feed.EnsureDataFile(cfg.DataFile); err != nil {
+		logger.Error("Cannot access the feed data file.", "error", err)
+		return
 	}
 
 	// Register routes
