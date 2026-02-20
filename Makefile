@@ -17,6 +17,7 @@ run-container: build-image
 		-e RSS_MAX_POSTS_PER_FEED=$(RSS_MAX_POSTS_PER_FEED) \
 		-e RSS_FETCH_TIMEOUT_SEC=$(RSS_FETCH_TIMEOUT_SEC) \
 		-e RSS_DEFAULT_RANGE=$(RSS_DEFAULT_RANGE) \
+		--name lexora-feed \
 		lexora-feed
 
 run-local:
