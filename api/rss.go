@@ -15,11 +15,6 @@ import (
 
 func HandleGetRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
 		q := r.URL.Query()
 		from, to, err := parseDateRange(q.Get("range"), q.Get("from"), q.Get("to"), cfg.DefaultRange)
 		if err != nil {
@@ -67,11 +62,6 @@ func HandleGetRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) htt
 
 func HandlePutRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
 		var req struct {
 			Name string `json:"name"`
 			URL  string `json:"url"`

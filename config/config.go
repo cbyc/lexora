@@ -18,16 +18,20 @@ type Config struct {
 	DefaultRange    string `mapstructure:"default_range"`
 }
 
-func Load(configPath string) (*Config, error) {
-	v := viper.New()
-
-	// 1. Built-in defaults
+func setDefaults(v *viper.Viper) {
 	v.SetDefault("host", "localhost")
 	v.SetDefault("port", 9001)
 	v.SetDefault("max_posts_per_feed", 50)
 	v.SetDefault("fetch_timeout_sec", 10)
 	v.SetDefault("data_file", "./data/feeds.yaml")
 	v.SetDefault("default_range", "last_month")
+}
+
+func Load(configPath string) (*Config, error) {
+	v := viper.New()
+
+	// 1. Built-in defaults
+	setDefaults(v)
 
 	// 2. Config file (optional)
 	var fileErr error
@@ -44,13 +48,7 @@ func Load(configPath string) (*Config, error) {
 			// File exists but is malformed or unreadable
 			fileErr = fmt.Errorf("config file error: %w", err)
 			// Reset to defaults by creating a fresh viper
-			v = viper.New()
-			v.SetDefault("host", "localhost")
-			v.SetDefault("port", 9001)
-			v.SetDefault("max_posts_per_feed", 50)
-			v.SetDefault("fetch_timeout_sec", 10)
-			v.SetDefault("data_file", "./data/feeds.yaml")
-			v.SetDefault("default_range", "last_month")
+			setDefaults(v)
 		}
 		// File not found is fine — just use defaults
 	}

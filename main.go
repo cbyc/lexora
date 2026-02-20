@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,15 +15,10 @@ import (
 )
 
 func main() {
-	// Load configuration
-	cfg, cfgErr := config.Load("")
-	if cfgErr != nil {
-		// Config file was malformed — we'll log the warning after logger init
-		log.Printf("WARNING: %v — using defaults", cfgErr)
-	}
-
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// Load configuration
+	cfg, cfgErr := config.Load("")
 	if cfgErr != nil {
 		logger.Warn("config.yaml malformed, using defaults", "error", cfgErr.Error())
 	}
@@ -47,21 +41,21 @@ func main() {
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		logger.Info("RSS service started", "addr", addr, "default_range", cfg.DefaultRange)
-		fmt.Printf("RSS service listening on %s\n", addr)
+		logger.Info("RSS service started", "addr", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("server error", "error", err.Error())
-			log.Fatalf("server error: %v", err)
+			logger.Error("server startup error", "error", err.Error())
 		}
 	}()
 
 	<-done
-	fmt.Println("\nShutting down...")
+	logger.Info("\nShutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("server shutdown error", "error", err.Error())
+	}
 
 	logger.Info("RSS service shutdown")
-	fmt.Println("Goodbye.")
 }

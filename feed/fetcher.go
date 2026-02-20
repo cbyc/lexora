@@ -3,7 +3,6 @@ package feed
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"sync"
 	"time"
@@ -30,9 +29,6 @@ func (e FeedError) Error() string {
 
 func FetchFeed(ctx context.Context, feedURL string, maxPosts int) ([]Post, error) {
 	parser := gofeed.NewParser()
-	parser.Client = &http.Client{
-		Transport: http.DefaultTransport,
-	}
 
 	f, err := parser.ParseURLWithContext(feedURL, ctx)
 	if err != nil {
