@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,7 +15,6 @@ import (
 
 	"personal-kb/services/rss/config"
 	"personal-kb/services/rss/feed"
-	"personal-kb/services/rss/logging"
 )
 
 // --- parseDateRange tests ---
@@ -80,7 +81,7 @@ func TestParseDateRange_AllTime(t *testing.T) {
 
 // --- Handler tests ---
 
-func setupTest(t *testing.T) (*config.Config, *logging.Loggers, string, func()) {
+func setupTest(t *testing.T) (*config.Config, *slog.Logger, string) {
 	t.Helper()
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, "data")
@@ -95,13 +96,10 @@ func setupTest(t *testing.T) (*config.Config, *logging.Loggers, string, func()) 
 		DefaultRange:    "last_month",
 	}
 
-	loggers, err := logging.Setup(filepath.Join(dir, "logs"))
-	if err != nil {
-		t.Fatalf("logging setup: %v", err)
-	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	feedsPath := filepath.Join(dataDir, "feeds.yaml")
-	return cfg, loggers, feedsPath, func() { loggers.Close() }
+	return cfg, logger, feedsPath
 }
 
 func newFeedServer(title, pubDateRFC2822 string) *httptest.Server {
@@ -123,8 +121,7 @@ func newFeedServer(title, pubDateRFC2822 string) *httptest.Server {
 }
 
 func TestGetRSS_Success(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	srv := newFeedServer("TestFeed", time.Now().UTC().Format(time.RFC1123Z))
 	defer srv.Close()
@@ -133,7 +130,7 @@ func TestGetRSS_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=last_month", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, feedsPath)(w, req)
+	HandleGetRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 200 {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -147,8 +144,7 @@ func TestGetRSS_Success(t *testing.T) {
 }
 
 func TestGetRSS_WithDateFilter(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	// Create a feed with a post from a year ago
 	srv := newFeedServer("OldFeed", "Mon, 01 Jan 2025 10:00:00 +0000")
@@ -158,7 +154,7 @@ func TestGetRSS_WithDateFilter(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=last_week", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, feedsPath)(w, req)
+	HandleGetRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 200 {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -172,14 +168,13 @@ func TestGetRSS_WithDateFilter(t *testing.T) {
 }
 
 func TestGetRSS_NoFeeds(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	feed.SaveFeeds(feedsPath, []feed.Feed{})
 
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=last_month", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, feedsPath)(w, req)
+	HandleGetRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 200 {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -193,14 +188,13 @@ func TestGetRSS_NoFeeds(t *testing.T) {
 }
 
 func TestGetRSS_InvalidRange(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	feed.SaveFeeds(feedsPath, []feed.Feed{})
 
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=bogus", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, feedsPath)(w, req)
+	HandleGetRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 400 {
 		t.Errorf("status = %d, want 400", w.Code)
@@ -208,8 +202,7 @@ func TestGetRSS_InvalidRange(t *testing.T) {
 }
 
 func TestGetRSS_AllFeedsFail(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	badSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
@@ -220,7 +213,7 @@ func TestGetRSS_AllFeedsFail(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=last_month", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, feedsPath)(w, req)
+	HandleGetRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 200 {
 		t.Errorf("status = %d, want 200", w.Code)
@@ -231,18 +224,17 @@ func TestGetRSS_AllFeedsFail(t *testing.T) {
 }
 
 func TestGetRSS_FeedsFileUnreadable(t *testing.T) {
-	cfg, loggers, _, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, _ := setupTest(t)
 
 	// Point to a directory instead of a file
 	req := httptest.NewRequest(http.MethodGet, "/rss?range=last_month", nil)
 	w := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, "/nonexistent-dir-xyz/feeds.yaml")(w, req)
+	HandleGetRSS(cfg, logger, "/nonexistent-dir-xyz/feeds.yaml")(w, req)
 
 	// LoadFeeds returns nil, nil for non-existent file, so this should be 200 with empty array
 	// Let's point to a path that will fail differently — a directory
 	w2 := httptest.NewRecorder()
-	HandleGetRSS(cfg, loggers, os.TempDir())(w2, req)
+	HandleGetRSS(cfg, logger, os.TempDir())(w2, req)
 	// Reading a directory as a file should fail
 	if w2.Code != 500 {
 		t.Errorf("status = %d, want 500", w2.Code)
@@ -250,8 +242,7 @@ func TestGetRSS_FeedsFileUnreadable(t *testing.T) {
 }
 
 func TestPutRSS_Success(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	feed.SaveFeeds(feedsPath, []feed.Feed{})
 
@@ -263,7 +254,7 @@ func TestPutRSS_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/rss", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	HandlePutRSS(cfg, loggers, feedsPath)(w, req)
+	HandlePutRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 201 {
 		t.Errorf("status = %d, want 201, body: %s", w.Code, w.Body.String())
@@ -277,13 +268,12 @@ func TestPutRSS_Success(t *testing.T) {
 }
 
 func TestPutRSS_MissingFields(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	body, _ := json.Marshal(map[string]string{"name": "NoURL"})
 	req := httptest.NewRequest(http.MethodPut, "/rss", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-	HandlePutRSS(cfg, loggers, feedsPath)(w, req)
+	HandlePutRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 400 {
 		t.Errorf("status = %d, want 400", w.Code)
@@ -291,8 +281,7 @@ func TestPutRSS_MissingFields(t *testing.T) {
 }
 
 func TestPutRSS_DuplicateURL(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	srv := newFeedServer("Dup", time.Now().UTC().Format(time.RFC1123Z))
 	defer srv.Close()
@@ -302,7 +291,7 @@ func TestPutRSS_DuplicateURL(t *testing.T) {
 	body, _ := json.Marshal(map[string]string{"name": "Dup", "url": srv.URL})
 	req := httptest.NewRequest(http.MethodPut, "/rss", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-	HandlePutRSS(cfg, loggers, feedsPath)(w, req)
+	HandlePutRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 409 {
 		t.Errorf("status = %d, want 409", w.Code)
@@ -310,8 +299,7 @@ func TestPutRSS_DuplicateURL(t *testing.T) {
 }
 
 func TestPutRSS_InvalidFeedURL(t *testing.T) {
-	cfg, loggers, feedsPath, cleanup := setupTest(t)
-	defer cleanup()
+	cfg, logger, feedsPath := setupTest(t)
 
 	feed.SaveFeeds(feedsPath, []feed.Feed{})
 
@@ -324,7 +312,7 @@ func TestPutRSS_InvalidFeedURL(t *testing.T) {
 	body, _ := json.Marshal(map[string]string{"name": "Bad", "url": htmlSrv.URL})
 	req := httptest.NewRequest(http.MethodPut, "/rss", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-	HandlePutRSS(cfg, loggers, feedsPath)(w, req)
+	HandlePutRSS(cfg, logger, feedsPath)(w, req)
 
 	if w.Code != 422 {
 		t.Errorf("status = %d, want 422", w.Code)

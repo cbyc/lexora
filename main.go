@@ -4,17 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
 	"personal-kb/services/rss/api"
 	"personal-kb/services/rss/config"
-	"personal-kb/services/rss/feed"
-	"personal-kb/services/rss/logging"
 )
 
 func main() {
@@ -25,25 +23,15 @@ func main() {
 		log.Printf("WARNING: %v — using defaults", cfgErr)
 	}
 
-	// Initialize logging
-	dataDir := filepath.Dir(cfg.DataFile)
-	if err := feed.EnsureDataDir(dataDir); err != nil {
-		log.Fatalf("failed to create data dir: %v", err)
-	}
-
-	loggers, err := logging.Setup(dataDir)
-	if err != nil {
-		log.Fatalf("failed to setup logging: %v", err)
-	}
-	defer loggers.Close()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	if cfgErr != nil {
-		loggers.Warn.Warn("config.yaml malformed, using defaults", "error", cfgErr.Error())
+		logger.Warn("config.yaml malformed, using defaults", "error", cfgErr.Error())
 	}
 
 	// Register routes
 	mux := http.NewServeMux()
-	api.RegisterRoutes(mux, cfg, loggers)
+	api.RegisterRoutes(mux, cfg, logger)
 
 	// Wrap with CORS
 	handler := api.CORS(mux)
@@ -59,10 +47,10 @@ func main() {
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		loggers.Info.Info("RSS service started", "addr", addr, "default_range", cfg.DefaultRange)
+		logger.Info("RSS service started", "addr", addr, "default_range", cfg.DefaultRange)
 		fmt.Printf("RSS service listening on %s\n", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			loggers.Error.Error("server error", "error", err.Error())
+			logger.Error("server error", "error", err.Error())
 			log.Fatalf("server error: %v", err)
 		}
 	}()
@@ -74,6 +62,6 @@ func main() {
 	defer cancel()
 	server.Shutdown(ctx)
 
-	loggers.Info.Info("RSS service shutdown")
+	logger.Info("RSS service shutdown")
 	fmt.Println("Goodbye.")
 }

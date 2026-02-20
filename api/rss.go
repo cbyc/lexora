@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"personal-kb/services/rss/config"
 	"personal-kb/services/rss/feed"
-	"personal-kb/services/rss/logging"
 )
 
-func HandleGetRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string) http.HandlerFunc {
+func HandleGetRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -29,7 +29,7 @@ func HandleGetRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string
 
 		feeds, err := feed.LoadFeeds(feedsPath)
 		if err != nil {
-			loggers.Error.Error("failed to read feeds file", "path", feedsPath, "error", err.Error())
+			logger.Error("failed to read feeds file", "path", feedsPath, "error", err.Error())
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -38,7 +38,7 @@ func HandleGetRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string
 		posts, feedErrs := feed.FetchAllFeeds(r.Context(), feeds, cfg.MaxPostsPerFeed, timeout)
 
 		for _, fe := range feedErrs {
-			loggers.Error.Error("feed fetch failed", "feed", fe.FeedName, "url", fe.URL, "error", fe.Err.Error())
+			logger.Error("feed fetch failed", "feed", fe.FeedName, "url", fe.URL, "error", fe.Err.Error())
 		}
 
 		if len(feedErrs) == len(feeds) && len(feeds) > 0 {
@@ -65,7 +65,7 @@ func HandleGetRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string
 	}
 }
 
-func HandlePutRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string) http.HandlerFunc {
+func HandlePutRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -96,16 +96,16 @@ func HandlePutRSS(cfg *config.Config, loggers *logging.Loggers, feedsPath string
 		newFeed := feed.Feed{Name: req.Name, URL: req.URL}
 		if err := feed.AddFeed(feedsPath, newFeed); err != nil {
 			if errors.Is(err, feed.ErrDuplicateFeed) {
-				loggers.Warn.Warn("duplicate feed URL rejected", "url", req.URL)
+				logger.Warn("duplicate feed URL rejected", "url", req.URL)
 				http.Error(w, "feed URL already exists", http.StatusConflict)
 				return
 			}
-			loggers.Error.Error("failed to add feed", "error", err.Error())
+			logger.Error("failed to add feed", "error", err.Error())
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		loggers.Info.Info("feed added", "name", req.Name, "url", req.URL)
+		logger.Info("feed added", "name", req.Name, "url", req.URL)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -161,15 +161,15 @@ func parseDateRange(rangeParam, fromParam, toParam string, defaultRange string) 
 	}
 }
 
-func RegisterRoutes(mux *http.ServeMux, cfg *config.Config, loggers *logging.Loggers) {
+func RegisterRoutes(mux *http.ServeMux, cfg *config.Config, logger *slog.Logger) {
 	feedsPath := cfg.DataFile
 
 	mux.HandleFunc("/rss", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			HandleGetRSS(cfg, loggers, feedsPath)(w, r)
+			HandleGetRSS(cfg, logger, feedsPath)(w, r)
 		case http.MethodPut:
-			HandlePutRSS(cfg, loggers, feedsPath)(w, r)
+			HandlePutRSS(cfg, logger, feedsPath)(w, r)
 		case http.MethodOptions:
 			w.WriteHeader(http.StatusNoContent)
 		default:

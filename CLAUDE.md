@@ -42,13 +42,13 @@ make run-container    # builds image and runs container on :9001
 - [api/](api/) — Handlers registered on `http.ServeMux`
   - [rss.go](api/rss.go) — `GET /rss` (fetch + date filter), `PUT /rss` (validate feed URL before adding). All routes dispatched via a single `mux.HandleFunc("/rss", ...)`.
   - [cors.go](api/cors.go) — CORS middleware wrapping the mux (allow all origins, GET/PUT/OPTIONS).
-- [logging/](logging/) — Structured `slog` loggers writing to `{dataDir}/errors.log`, `{dataDir}/warnings.log`, `{dataDir}/info.log`.
+- Logging — stdlib `log/slog` used directly (no wrapper package). A `*slog.Logger` is created in `main.go` and threaded through to handlers via function parameters.
 
 **API:**
 - `GET /rss?range=last_month` — Preset ranges: `today`, `last_week`, `last_month`, `last_3_months`, `last_6_months`, `last_year`. Explicit `from`/`to` RFC3339 params take precedence over `range`. When all feeds fail, returns 200 with empty array and `X-Feed-Errors: all-feeds-failed` header.
 - `PUT /rss` — Body: `{"name": "...", "url": "..."}`. Validates the URL is a real feed before saving. Returns 201/400/409/422.
 
-**Data:** Feed list at `data/feeds.yaml`. Logs in `data/` (same level, not a subdirectory).
+**Data:** Feed list at `data/feeds.yaml`. Log output goes to stdout.
 
 ## Configuration Defaults
 

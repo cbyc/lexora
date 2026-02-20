@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -17,7 +17,6 @@ import (
 	"personal-kb/services/rss/api"
 	"personal-kb/services/rss/config"
 	"personal-kb/services/rss/feed"
-	"personal-kb/services/rss/logging"
 )
 
 func TestIntegration_Smoke(t *testing.T) {
@@ -37,14 +36,10 @@ func TestIntegration_Smoke(t *testing.T) {
 		t.Fatalf("EnsureDataDir: %v", err)
 	}
 
-	loggers, err := logging.Setup(dataDir)
-	if err != nil {
-		t.Fatalf("logging.Setup: %v", err)
-	}
-	defer loggers.Close()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	mux := http.NewServeMux()
-	api.RegisterRoutes(mux, cfg, loggers)
+	api.RegisterRoutes(mux, cfg, logger)
 	handler := api.CORS(mux)
 
 	ln, err := net.Listen("tcp", "localhost:0")
@@ -125,14 +120,4 @@ func TestIntegration_Smoke(t *testing.T) {
 		}
 	})
 
-	// Verify logs
-	t.Run("info_log_has_entries", func(t *testing.T) {
-		data, err := os.ReadFile(filepath.Join(dataDir, "info.log"))
-		if err != nil {
-			t.Fatalf("read info.log: %v", err)
-		}
-		if len(data) == 0 {
-			t.Error("info.log should not be empty")
-		}
-	})
 }
