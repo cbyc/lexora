@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"personal-kb/services/rss/config"
@@ -163,8 +162,7 @@ func parseDateRange(rangeParam, fromParam, toParam string, defaultRange string) 
 }
 
 func RegisterRoutes(mux *http.ServeMux, cfg *config.Config, loggers *logging.Loggers) {
-	dataDir := cfg.DataDir
-	feedsPath := filepath.Join(dataDir, "feeds.yaml")
+	feedsPath := cfg.DataFile
 
 	mux.HandleFunc("/rss", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

@@ -24,8 +24,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.FetchTimeoutSec != 10 {
 		t.Errorf("FetchTimeoutSec = %d, want %d", cfg.FetchTimeoutSec, 10)
 	}
-	if cfg.DataDir != "./data" {
-		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "./data")
+	if cfg.DataFile != "./data/feeds.yaml" {
+		t.Errorf("DataFile = %q, want %q", cfg.DataFile, "./data/feeds.yaml")
 	}
 	if cfg.DefaultRange != "last_month" {
 		t.Errorf("DefaultRange = %q, want %q", cfg.DefaultRange, "last_month")

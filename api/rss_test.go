@@ -91,7 +91,7 @@ func setupTest(t *testing.T) (*config.Config, *logging.Loggers, string, func()) 
 		Port:            9001,
 		MaxPostsPerFeed: 50,
 		FetchTimeoutSec: 5,
-		DataDir:         dataDir,
+		DataFile:        filepath.Join(dataDir, "feeds.yaml"),
 		DefaultRange:    "last_month",
 	}
 

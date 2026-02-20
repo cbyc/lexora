@@ -67,4 +67,3 @@ func AddFeed(path string, feed Feed) error {
 func EnsureDataDir(dataDir string) error {
 	return os.MkdirAll(dataDir, 0755)
 }
-

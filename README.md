@@ -48,7 +48,7 @@ All settings can be overridden via environment variables. A `config.yaml` file i
 |---|---|---|
 | `RSS_HOST` | `localhost` | Host address the server binds to |
 | `RSS_PORT` | `9001` | Port the server listens on |
-| `RSS_DATA_DIR` | `./data` | Directory for `feeds.yaml` and log files |
+| `RSS_DATA_FILE` | `./data/feeds.yaml` | Path to the feeds file (logs go in the same directory) |
 | `RSS_MAX_POSTS_PER_FEED` | `50` | Maximum number of posts fetched per feed |
 | `RSS_FETCH_TIMEOUT_SEC` | `10` | Per-feed HTTP fetch timeout in seconds |
 | `RSS_DEFAULT_RANGE` | `last_month` | Date range used when no `range` param is given |

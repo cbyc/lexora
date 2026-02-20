@@ -29,7 +29,7 @@ func TestIntegration_Smoke(t *testing.T) {
 		Port:            0,
 		MaxPostsPerFeed: 50,
 		FetchTimeoutSec: 10,
-		DataDir:         dataDir,
+		DataFile:        filepath.Join(dataDir, "feeds.yaml"),
 		DefaultRange:    "last_month",
 	}
 

@@ -38,7 +38,7 @@ make run-container    # builds image and runs container on :9001
 - [config/](config/) — Viper config cascade: defaults → `config.yaml` → env vars (prefix `RSS_`, e.g. `RSS_PORT=8080`). Config file errors fall back to defaults rather than failing.
 - [feed/](feed/) — Feed fetching and storage
   - [fetcher.go](feed/fetcher.go) — Parallel fetching via goroutines+WaitGroup; per-feed context timeout. Posts sorted newest-first. Feed name overridden with user-configured name (not the feed's own title).
-  - [store.go](feed/store.go) — YAML-based feed list (`data/feeds.yaml`), duplicate detection by URL, seed data (`SeedFeeds`). `InitFeedsFile` is a no-op if the file already exists.
+  - [store.go](feed/store.go) — YAML-based feed list (path from `cfg.DataFile`), duplicate detection by URL.
 - [api/](api/) — Handlers registered on `http.ServeMux`
   - [rss.go](api/rss.go) — `GET /rss` (fetch + date filter), `PUT /rss` (validate feed URL before adding). All routes dispatched via a single `mux.HandleFunc("/rss", ...)`.
   - [cors.go](api/cors.go) — CORS middleware wrapping the mux (allow all origins, GET/PUT/OPTIONS).
@@ -56,7 +56,7 @@ make run-container    # builds image and runs container on :9001
 |-----|---------|---------|
 | Host | `localhost` | `RSS_HOST` |
 | Port | `9001` | `RSS_PORT` |
-| DataDir | `./data` | `RSS_DATA_DIR` |
+| DataFile | `./data/feeds.yaml` | `RSS_DATA_FILE` |
 | MaxPostsPerFeed | `50` | `RSS_MAX_POSTS_PER_FEED` |
 | FetchTimeoutSec | `10` | `RSS_FETCH_TIMEOUT_SEC` |
 | DefaultRange | `last_month` | `RSS_DEFAULT_RANGE` |

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -25,11 +26,12 @@ func main() {
 	}
 
 	// Initialize logging
-	if err := feed.EnsureDataDir(cfg.DataDir); err != nil {
+	dataDir := filepath.Dir(cfg.DataFile)
+	if err := feed.EnsureDataDir(dataDir); err != nil {
 		log.Fatalf("failed to create data dir: %v", err)
 	}
 
-	loggers, err := logging.Setup(cfg.DataDir)
+	loggers, err := logging.Setup(dataDir)
 	if err != nil {
 		log.Fatalf("failed to setup logging: %v", err)
 	}

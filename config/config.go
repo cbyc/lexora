@@ -14,7 +14,7 @@ type Config struct {
 	Port            int    `mapstructure:"port"`
 	MaxPostsPerFeed int    `mapstructure:"max_posts_per_feed"`
 	FetchTimeoutSec int    `mapstructure:"fetch_timeout_sec"`
-	DataDir         string `mapstructure:"data_dir"`
+	DataFile        string `mapstructure:"data_file"`
 	DefaultRange    string `mapstructure:"default_range"`
 }
 
@@ -26,7 +26,7 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("port", 9001)
 	v.SetDefault("max_posts_per_feed", 50)
 	v.SetDefault("fetch_timeout_sec", 10)
-	v.SetDefault("data_dir", "./data")
+	v.SetDefault("data_file", "./data/feeds.yaml")
 	v.SetDefault("default_range", "last_month")
 
 	// 2. Config file (optional)
@@ -49,7 +49,7 @@ func Load(configPath string) (*Config, error) {
 			v.SetDefault("port", 9001)
 			v.SetDefault("max_posts_per_feed", 50)
 			v.SetDefault("fetch_timeout_sec", 10)
-			v.SetDefault("data_dir", "./data")
+			v.SetDefault("data_file", "./data/feeds.yaml")
 			v.SetDefault("default_range", "last_month")
 		}
 		// File not found is fine — just use defaults
