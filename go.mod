@@ -1,4 +1,4 @@
-module personal-kb/services/rss
+module lexora-feed
 
 go 1.24.2
 

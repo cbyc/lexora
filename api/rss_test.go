@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"personal-kb/services/rss/config"
-	"personal-kb/services/rss/feed"
+	"lexora-feed/config"
+	"lexora-feed/feed"
 )
 
 // --- parseDateRange tests ---

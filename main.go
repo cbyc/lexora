@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"personal-kb/services/rss/api"
-	"personal-kb/services/rss/config"
+	"lexora-feed/api"
+	"lexora-feed/config"
 )
 
 func main() {

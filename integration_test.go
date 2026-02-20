@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"personal-kb/services/rss/api"
-	"personal-kb/services/rss/config"
-	"personal-kb/services/rss/feed"
+	"lexora-feed/api"
+	"lexora-feed/config"
+	"lexora-feed/feed"
 )
 
 func TestIntegration_Smoke(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"personal-kb/services/rss/config"
-	"personal-kb/services/rss/feed"
+	"lexora-feed/config"
+	"lexora-feed/feed"
 )
 
 func HandleGetRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) http.HandlerFunc {
