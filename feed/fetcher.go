@@ -27,7 +27,7 @@ func (e FeedError) Error() string {
 	return fmt.Sprintf("feed %q (%s): %v", e.FeedName, e.URL, e.Err)
 }
 
-func FetchFeed(ctx context.Context, feedURL string, maxPosts int) ([]Post, error) {
+func FetchFeed(ctx context.Context, feedName string, feedURL string, maxPosts int) ([]Post, error) {
 	parser := gofeed.NewParser()
 
 	f, err := parser.ParseURLWithContext(feedURL, ctx)
@@ -48,7 +48,7 @@ func FetchFeed(ctx context.Context, feedURL string, maxPosts int) ([]Post, error
 		}
 
 		posts = append(posts, Post{
-			FeedName:    f.Title,
+			FeedName:    feedName,
 			Title:       item.Title,
 			URL:         item.Link,
 			PublishedAt: published,
@@ -57,8 +57,8 @@ func FetchFeed(ctx context.Context, feedURL string, maxPosts int) ([]Post, error
 	return posts, nil
 }
 
-func ValidateFeed(ctx context.Context, url string) error {
-	_, err := FetchFeed(ctx, url, 1)
+func ValidateFeed(ctx context.Context, name string, url string) error {
+	_, err := FetchFeed(ctx, name, url, 1)
 	return err
 }
 
@@ -77,16 +77,12 @@ func FetchAllFeeds(ctx context.Context, feeds []Feed, maxPostsPerFeed int, timeo
 			fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			posts, err := FetchFeed(fetchCtx, fd.URL, maxPostsPerFeed)
+			posts, err := FetchFeed(fetchCtx, fd.Name, fd.URL, maxPostsPerFeed)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
 				errs = append(errs, FeedError{FeedName: fd.Name, URL: fd.URL, Err: err})
 				return
-			}
-			// Override feed name with the user-configured name
-			for i := range posts {
-				posts[i].FeedName = fd.Name
 			}
 			allPosts = append(allPosts, posts...)
 		}(f)

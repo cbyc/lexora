@@ -78,7 +78,7 @@ func HandlePutRSS(cfg *config.Config, logger *slog.Logger, feedsPath string) htt
 		// Validate the feed URL
 		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(cfg.FetchTimeoutSec)*time.Second)
 		defer cancel()
-		if err := feed.ValidateFeed(ctx, req.URL); err != nil {
+		if err := feed.ValidateFeed(ctx, req.Name, req.URL); err != nil {
 			http.Error(w, fmt.Sprintf("URL is not a valid RSS/Atom feed: %v", err), http.StatusUnprocessableEntity)
 			return
 		}

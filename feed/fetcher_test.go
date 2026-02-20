@@ -38,7 +38,8 @@ func TestFetchFeed_ValidRSS(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	posts, err := FetchFeed(context.Background(), srv.URL, 2)
+	testFeedName := "Hot Feed"
+	posts, err := FetchFeed(context.Background(), testFeedName, srv.URL, 2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,8 +49,8 @@ func TestFetchFeed_ValidRSS(t *testing.T) {
 	if posts[0].Title != "Post One" {
 		t.Errorf("posts[0].Title = %q, want %q", posts[0].Title, "Post One")
 	}
-	if posts[0].FeedName != "Test Feed" {
-		t.Errorf("posts[0].FeedName = %q, want %q", posts[0].FeedName, "Test Feed")
+	if posts[0].FeedName != testFeedName {
+		t.Errorf("posts[0].FeedName = %q, want %q", posts[0].FeedName, testFeedName)
 	}
 	if posts[0].URL != "https://example.com/1" {
 		t.Errorf("posts[0].URL = %q, want %q", posts[0].URL, "https://example.com/1")
@@ -66,7 +67,7 @@ func TestFetchFeed_InvalidContent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := FetchFeed(context.Background(), srv.URL, 10)
+	_, err := FetchFeed(context.Background(), "", srv.URL, 10)
 	if err == nil {
 		t.Error("expected error for non-feed content, got nil")
 	}
@@ -82,7 +83,7 @@ func TestFetchFeed_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	_, err := FetchFeed(ctx, srv.URL, 10)
+	_, err := FetchFeed(ctx, "", srv.URL, 10)
 	if err == nil {
 		t.Error("expected timeout error, got nil")
 	}
@@ -94,7 +95,7 @@ func TestValidateFeed_Valid(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := ValidateFeed(context.Background(), srv.URL)
+	err := ValidateFeed(context.Background(), "", srv.URL)
 	if err != nil {
 		t.Errorf("expected nil error, got: %v", err)
 	}
@@ -106,7 +107,7 @@ func TestValidateFeed_NotAFeed(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	err := ValidateFeed(context.Background(), srv.URL)
+	err := ValidateFeed(context.Background(), "", srv.URL)
 	if err == nil {
 		t.Error("expected error for non-feed URL, got nil")
 	}
