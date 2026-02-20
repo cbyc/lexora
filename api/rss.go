@@ -154,12 +154,15 @@ func parseDateRange(rangeParam, fromParam, toParam string, defaultRange string) 
 func RegisterRoutes(mux *http.ServeMux, cfg *config.Config, logger *slog.Logger) {
 	feedsPath := cfg.DataFile
 
+	getHandler := HandleGetRSS(cfg, logger, feedsPath)
+	putHandler := HandlePutRSS(cfg, logger, feedsPath)
+
 	mux.HandleFunc("/rss", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			HandleGetRSS(cfg, logger, feedsPath)(w, r)
+			getHandler(w, r)
 		case http.MethodPut:
-			HandlePutRSS(cfg, logger, feedsPath)(w, r)
+			putHandler(w, r)
 		case http.MethodOptions:
 			w.WriteHeader(http.StatusNoContent)
 		default:
