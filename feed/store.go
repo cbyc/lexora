@@ -19,12 +19,6 @@ type feedsFile struct {
 	Feeds []Feed `yaml:"feeds"`
 }
 
-var SeedFeeds = []Feed{
-	{Name: "Hacker News", URL: "https://news.ycombinator.com/rss"},
-	{Name: "Go Blog", URL: "https://go.dev/blog/feed.atom"},
-	{Name: "Anthropic Blog", URL: "https://www.anthropic.com/rss.xml"},
-}
-
 func LoadFeeds(path string) ([]Feed, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -74,9 +68,3 @@ func EnsureDataDir(dataDir string) error {
 	return os.MkdirAll(dataDir, 0755)
 }
 
-func InitFeedsFile(path string, seeds []Feed) error {
-	if _, err := os.Stat(path); err == nil {
-		return nil // file exists, don't overwrite
-	}
-	return SaveFeeds(path, seeds)
-}

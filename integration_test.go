@@ -36,19 +36,6 @@ func TestIntegration_Smoke(t *testing.T) {
 	if err := feed.EnsureDataDir(dataDir); err != nil {
 		t.Fatalf("EnsureDataDir: %v", err)
 	}
-	feedsPath := filepath.Join(dataDir, "feeds.yaml")
-	if err := feed.InitFeedsFile(feedsPath, feed.SeedFeeds); err != nil {
-		t.Fatalf("InitFeedsFile: %v", err)
-	}
-
-	// Verify seed feeds were created
-	feeds, err := feed.LoadFeeds(feedsPath)
-	if err != nil {
-		t.Fatalf("LoadFeeds: %v", err)
-	}
-	if len(feeds) != 3 {
-		t.Fatalf("expected 3 seed feeds, got %d", len(feeds))
-	}
 
 	loggers, err := logging.Setup(dataDir)
 	if err != nil {
@@ -86,7 +73,7 @@ func TestIntegration_Smoke(t *testing.T) {
 		}
 		var posts []feed.Post
 		json.NewDecoder(resp.Body).Decode(&posts)
-		t.Logf("got %d posts from seed feeds", len(posts))
+		t.Logf("got %d posts", len(posts))
 	})
 
 	// PUT /rss — add new feed

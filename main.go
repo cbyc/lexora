@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -38,12 +37,6 @@ func main() {
 
 	if cfgErr != nil {
 		loggers.Warn.Warn("config.yaml malformed, using defaults", "error", cfgErr.Error())
-	}
-
-	// Initialize feeds file with seed data
-	feedsPath := filepath.Join(cfg.DataDir, "feeds.yaml")
-	if err := feed.InitFeedsFile(feedsPath, feed.SeedFeeds); err != nil {
-		log.Fatalf("failed to initialize feeds file: %v", err)
 	}
 
 	// Register routes
