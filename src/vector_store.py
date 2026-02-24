@@ -56,7 +56,10 @@ class VectorStore:
         points = []
         for chunk, embedding in zip(chunks, embeddings):
             point_id = str(
-                uuid.uuid5(uuid.NAMESPACE_DNS, f"{chunk.source}:{chunk.chunk_index}:{chunk.text}")
+                uuid.uuid5(
+                    uuid.NAMESPACE_DNS,
+                    f"{chunk.source}:{chunk.chunk_index}:{chunk.text}",
+                )
             )
             points.append(
                 PointStruct(
@@ -101,7 +104,7 @@ class VectorStore:
             chunk = Chunk(
                 text=payload["text"],
                 source=payload["source"],
-                chunk_index=payload["chunk_index"]
+                chunk_index=payload["chunk_index"],
             )
             search_results.append(chunk)
 

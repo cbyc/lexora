@@ -17,7 +17,9 @@ class TestVectorStore:
         store = VectorStore(use_memory=True)
         store.ensure_collection()
 
-    def test_add_and_search(self, sample_chunks: list[Chunk], sample_embeddings: list[list[float]]):
+    def test_add_and_search(
+        self, sample_chunks: list[Chunk], sample_embeddings: list[list[float]]
+    ):
         """add_chunks should store data retrievable by search."""
         store = VectorStore(use_memory=True)
         store.ensure_collection()

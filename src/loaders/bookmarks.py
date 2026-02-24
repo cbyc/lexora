@@ -1,6 +1,6 @@
 """Firefox bookmark loader — reads bookmarks and extracts web content."""
 
-import logging
+import structlog
 import platform
 import shutil
 import sqlite3
@@ -13,7 +13,7 @@ import trafilatura
 from src.loaders.sync_state import load_sync_state, save_sync_state
 from src.loaders.models import Document
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -49,7 +49,8 @@ def find_firefox_profile() -> Path | None:
     # Look for default profile (usually ends with .default or .default-release)
     for profile_dir in sorted(profiles_dir.iterdir()):
         if profile_dir.is_dir() and (
-            profile_dir.name.endswith(".default") or profile_dir.name.endswith(".default-release")
+            profile_dir.name.endswith(".default")
+            or profile_dir.name.endswith(".default-release")
         ):
             places_db = profile_dir / "places.sqlite"
             if places_db.exists():
@@ -179,7 +180,6 @@ def fetch_page_content(
     except Exception as e:
         logger.warning("Error fetching %s: %s", url, e)
         return None
-
 
 
 def load_bookmarks(

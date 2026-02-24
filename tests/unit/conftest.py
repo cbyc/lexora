@@ -23,9 +23,17 @@ def test_data_dir(tmp_path: Path) -> Path:
 def sample_chunks() -> list[Chunk]:
     """A list of sample chunks for testing."""
     return [
-        Chunk(text="First chunk of text about Python.", source="doc1.txt", chunk_index=0),
-        Chunk(text="Second chunk about machine learning.", source="doc1.txt", chunk_index=1),
-        Chunk(text="Third chunk about cooking recipes.", source="doc2.txt", chunk_index=0),
+        Chunk(
+            text="First chunk of text about Python.", source="doc1.txt", chunk_index=0
+        ),
+        Chunk(
+            text="Second chunk about machine learning.",
+            source="doc1.txt",
+            chunk_index=1,
+        ),
+        Chunk(
+            text="Third chunk about cooking recipes.", source="doc2.txt", chunk_index=0
+        ),
     ]
 
 

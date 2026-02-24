@@ -37,9 +37,15 @@ def firefox_db(tmp_path: Path) -> Path:
         )
     """)
     # Insert test data
-    conn.execute("INSERT INTO moz_places (id, url) VALUES (1, 'https://example.com/article1')")
-    conn.execute("INSERT INTO moz_places (id, url) VALUES (2, 'https://example.com/article2')")
-    conn.execute("INSERT INTO moz_places (id, url) VALUES (3, 'place:sort=8')")  # folder/separator
+    conn.execute(
+        "INSERT INTO moz_places (id, url) VALUES (1, 'https://example.com/article1')"
+    )
+    conn.execute(
+        "INSERT INTO moz_places (id, url) VALUES (2, 'https://example.com/article2')"
+    )
+    conn.execute(
+        "INSERT INTO moz_places (id, url) VALUES (3, 'place:sort=8')"
+    )  # folder/separator
     conn.execute("INSERT INTO moz_places (id, url) VALUES (4, 'about:config')")
 
     # type=1 is bookmarks, type=2 is folders

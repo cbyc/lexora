@@ -37,7 +37,9 @@ def load_notes(
     documents = []
     for file_path in sorted(dir_path.glob("*.txt")):
         if last_sync is None or file_path.stat().st_mtime > last_sync:
-            documents.append(Document(content=file_path.read_text(), source=str(file_path)))
+            documents.append(
+                Document(content=file_path.read_text(), source=str(file_path))
+            )
 
     save_sync_state(state_path, now)
     return documents

@@ -18,3 +18,4 @@ build/
 *sync_state.json
 .gemini_api_key
 *.sqlite-*
+data/
