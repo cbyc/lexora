@@ -1,0 +1,15 @@
+[project]
+name = "lexora-link"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+dependencies = [
+    "docling>=2.74.0",
+    "pydantic>=2.12.5",
+    "pytest>=9.0.2",
+    "trafilatura>=2.0.0",
+]
