@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
+dependencies = [
+    "pytest>=9.0.2",
+    "qdrant-client>=1.17.0",
+    "trafilatura>=2.0.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
