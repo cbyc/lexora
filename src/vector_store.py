@@ -5,11 +5,8 @@ import structlog
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
-from sentence_transformers import SentenceTransformer
 
 from src.models import Chunk
-from src.loaders.models import Document
-from src.chunker import chunk_text
 
 logger = structlog.get_logger(__name__)
 
@@ -79,19 +76,6 @@ class VectorStore:
                 )
             )
         self._client.upsert(collection_name=self._collection_name, points=points)
-
-    def add_docs(self, docs: list[Document], embedding_model: SentenceTransformer):
-        for doc in docs:
-            chunks = []
-            embeddings = []
-
-            s = chunk_text(doc.content, 500, 50)
-            for i, c in enumerate(s):
-                chunks.append(Chunk(c, doc.source, i))
-                embeddings.append(embedding_model.encode(c).tolist())
-
-            self.add_chunks(chunks, embeddings)
-            logger.info(f"{doc.source} with {len(chunks)} chunks ingested.")
 
     def search(
         self,

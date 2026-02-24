@@ -1,13 +1,18 @@
-def chunk_text(body: str, chunk_size: int, overlap: int) -> list[str]:
-    chunks = []
+class SimpleChunker:
+    def __init__(self, chunk_size: int, overlap: int):
+        self._chunk_size = chunk_size
+        self._overlap = overlap
 
-    step = chunk_size - overlap
-    for i in range(0, len(body), step):
-        chunk = body[i : i + chunk_size]
-        chunks.append(chunk)
+    def chunk(self, text: str) -> list[str]:
+        chunks = []
 
-        # Stop if we've reached the end of the text
-        if i + chunk_size >= len(body):
-            break
+        step = self._chunk_size - self._overlap
+        for i in range(0, len(text), step):
+            chunk = text[i : i + self._chunk_size]
+            chunks.append(chunk)
 
-    return chunks
+            # Stop if we've reached the end of the text
+            if i + self._chunk_size >= len(text):
+                break
+
+        return chunks

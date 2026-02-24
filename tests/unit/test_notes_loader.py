@@ -39,7 +39,7 @@ class TestLoadNotes:
 
     def test_nonexistent_dir_raises(self, tmp_path: Path):
         """Should raise FileNotFoundError for a nonexistent directory."""
-        with pytest.raises((FileNotFoundError, NotImplementedError)):
+        with pytest.raises(FileNotFoundError):
             load_notes("/nonexistent/path", sync_state_path=tmp_path / "state.json")
 
     def test_empty_dir_returns_empty_list(self, tmp_path: Path):

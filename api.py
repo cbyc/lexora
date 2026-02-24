@@ -7,12 +7,14 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sentence_transformers import SentenceTransformer
 
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
 from src.models import QueryRequest
+from src.chunker import SimpleChunker
+from src.pipeline import Pipeline
+from src.embedder import SentenceTransformerEmbeddingModel
 
 MAX_QUERY_LENGTH = 1024
 
@@ -24,9 +26,11 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global embedding_model, vectorstore
-    embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    global pipeline
+    chunker = SimpleChunker(500, 50)
+    embedding_model = SentenceTransformerEmbeddingModel()
     vectorstore = VectorStore()
+    pipeline = Pipeline(chunker, embedding_model, vectorstore)
     yield
 
 
@@ -56,16 +60,13 @@ async def query(request: QueryRequest):
             },
         )
 
-    question_embedding = embedding_model.encode(request.question)
-    result = vectorstore.search(question_embedding)
+    result = pipeline.search_document_store(request.question)
 
     return result
 
 
 @app.post("/api/v1/reindex")
 async def reindex():
-    vectorstore.ensure_collection()
-
     notes = load_notes("./data/notes", "./data/notes_sync.json")
     logger.info(f"{len(notes)} notes found.")
 
@@ -73,7 +74,7 @@ async def reindex():
     logger.info(f"{len(bookmarks)} bookmarks found.")
 
     docs = notes + bookmarks
-    vectorstore.add_docs(docs, embedding_model)
+    pipeline.add_docs(docs)
 
 
 if __name__ == "__main__":
