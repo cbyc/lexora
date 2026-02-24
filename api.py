@@ -24,6 +24,9 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global embedding_model, vectorstore
+    embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = VectorStore()
     yield
 
 
@@ -40,9 +43,6 @@ def _configure_cors():
 
 
 _configure_cors()
-
-embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = VectorStore()
 
 @app.post("/api/v1/query")
 async def query(request: QueryRequest):
@@ -61,22 +61,8 @@ async def query(request: QueryRequest):
     return result
 
 
-def chunk_text(body: str, chunk_size: int, overlap: int) -> list[str]:
-    chunks = []
-
-    step = chunk_size - overlap
-    for i in range(0, len(body), step):
-        chunk = body[i : i + chunk_size]
-        chunks.append(chunk)
-
-        # Stop if we've reached the end of the text
-        if i + chunk_size >= len(body):
-            break
-
-    return chunks
-
-
-if __name__ == "__main__":
+@app.post("/api/v1/reindex")
+async def reindex():
     vectorstore.ensure_collection()
 
     notes = load_notes("./data/notes", "./data/notes_sync.json")
@@ -99,4 +85,21 @@ if __name__ == "__main__":
         vectorstore.add_chunks(chunks, embeddings)
         logger.info(f"{doc.source} with {len(chunks)} chunks ingested.")
 
+
+def chunk_text(body: str, chunk_size: int, overlap: int) -> list[str]:
+    chunks = []
+
+    step = chunk_size - overlap
+    for i in range(0, len(body), step):
+        chunk = body[i : i + chunk_size]
+        chunks.append(chunk)
+
+        # Stop if we've reached the end of the text
+        if i + chunk_size >= len(body):
+            break
+
+    return chunks
+
+
+if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=9002)
