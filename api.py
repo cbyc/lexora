@@ -13,6 +13,7 @@ from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
 from src.models import Chunk, QueryRequest
+from src.chunker import chunk_text
 
 MAX_QUERY_LENGTH = 1024
 
@@ -43,6 +44,7 @@ def _configure_cors():
 
 
 _configure_cors()
+
 
 @app.post("/api/v1/query")
 async def query(request: QueryRequest):
@@ -84,21 +86,6 @@ async def reindex():
 
         vectorstore.add_chunks(chunks, embeddings)
         logger.info(f"{doc.source} with {len(chunks)} chunks ingested.")
-
-
-def chunk_text(body: str, chunk_size: int, overlap: int) -> list[str]:
-    chunks = []
-
-    step = chunk_size - overlap
-    for i in range(0, len(body), step):
-        chunk = body[i : i + chunk_size]
-        chunks.append(chunk)
-
-        # Stop if we've reached the end of the text
-        if i + chunk_size >= len(body):
-            break
-
-    return chunks
 
 
 if __name__ == "__main__":
