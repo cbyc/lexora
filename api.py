@@ -12,8 +12,7 @@ from sentence_transformers import SentenceTransformer
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
-from src.models import Chunk, QueryRequest
-from src.chunker import chunk_text
+from src.models import QueryRequest
 
 MAX_QUERY_LENGTH = 1024
 
@@ -74,18 +73,7 @@ async def reindex():
     logger.info(f"{len(bookmarks)} bookmarks found.")
 
     docs = notes + bookmarks
-
-    for doc in docs:
-        chunks = []
-        embeddings = []
-
-        s = chunk_text(doc.content, 500, 50)
-        for i, c in enumerate(s):
-            chunks.append(Chunk(c, doc.source, i))
-            embeddings.append(embedding_model.encode(c).tolist())
-
-        vectorstore.add_chunks(chunks, embeddings)
-        logger.info(f"{doc.source} with {len(chunks)} chunks ingested.")
+    vectorstore.add_docs(docs, embedding_model)
 
 
 if __name__ == "__main__":
