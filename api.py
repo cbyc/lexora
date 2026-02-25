@@ -36,18 +36,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Lexora Mind API", lifespan=lifespan)
-
-
-def _configure_cors():
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-
-_configure_cors()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_pipeline(request: Request) -> Pipeline:
