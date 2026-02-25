@@ -15,8 +15,6 @@ class Pipeline:
         self._document_store = document_store
 
     def add_docs(self, docs: list[Document]):
-        self._document_store.ensure_collection()
-
         for doc in docs:
             chunks = []
             embeddings = []

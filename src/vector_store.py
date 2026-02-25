@@ -34,9 +34,10 @@ class VectorStore:
         self._collection_name = collection_name
         self._embedding_dimension = embedding_dimension
 
-    
     @classmethod
-    def in_memory(cls, collection_name: str = "lexora", embedding_dimension: int = 384) -> "VectorStore":
+    def in_memory(
+        cls, collection_name: str = "lexora", embedding_dimension: int = 384
+    ) -> "VectorStore":
         """Create a VectorStore backed by an ephemeral in-memory Qdrant instance.
 
         Intended for development and testing — data is lost when the process exits.
@@ -49,7 +50,9 @@ class VectorStore:
         return cls(client, collection_name, embedding_dimension)
 
     @classmethod
-    def from_url(cls, url: str, collection_name: str = "lexora", embedding_dimension: int = 384) -> "VectorStore":
+    def from_url(
+        cls, url: str, collection_name: str = "lexora", embedding_dimension: int = 384
+    ) -> "VectorStore":
         """Create a VectorStore connected to a remote Qdrant server.
 
         Args:
@@ -59,7 +62,6 @@ class VectorStore:
         """
         client = QdrantClient(url=url)
         return cls(client, collection_name, embedding_dimension)
-    
 
     def ensure_collection(self) -> None:
         """Create collection if it doesn't exist."""

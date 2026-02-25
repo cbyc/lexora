@@ -50,20 +50,6 @@ class FakeDocumentStore:
 
 
 class TestPipelineAddDocs:
-    def test_ensure_collection_called(self):
-        """add_docs should call ensure_collection on the store."""
-        store = FakeDocumentStore()
-        pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store)
-        pipeline.add_docs([Document(content="text", source="a.txt")])
-        assert store.ensured
-
-    def test_ensure_collection_called_even_with_empty_docs(self):
-        """ensure_collection should be called even when the doc list is empty."""
-        store = FakeDocumentStore()
-        pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store)
-        pipeline.add_docs([])
-        assert store.ensured
-
     def test_chunker_called_once_per_doc(self):
         """The chunker should be called exactly once for each document's content."""
         chunker = FakeChunker()

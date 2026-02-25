@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     chunker = SimpleChunker(500, 50)
     embedding_model = SentenceTransformerEmbeddingModel()
     vectorstore = VectorStore.in_memory()
+    vectorstore.ensure_collection()
+
     app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore)
     yield
 
