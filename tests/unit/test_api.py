@@ -5,7 +5,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api import app, get_pipeline
+from api import app, get_pipeline, get_settings
+from src.config import Settings
 from src.loaders.models import Document
 from src.models import Chunk
 
@@ -94,6 +95,11 @@ class TestQueryEndpoint:
 
 
 class TestReindexEndpoint:
+    @pytest.fixture(autouse=True)
+    def override_settings(self):
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        yield
+
     def test_returns_200(self, client):
         """A reindex call should return HTTP 200."""
         app.dependency_overrides[get_pipeline] = lambda: FakePipeline()

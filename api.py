@@ -1,12 +1,12 @@
-import os
-import structlog
 import logging
 from contextlib import asynccontextmanager
 
+import structlog
 import uvicorn
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.config import Settings
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
@@ -15,20 +15,32 @@ from src.chunker import SimpleChunker
 from src.pipeline import Pipeline
 from src.embedder import SentenceTransformerEmbeddingModel
 
+settings = Settings()
 
-log_level = os.environ.get("LOGLEVEL", "WARNING").upper()
-logging.basicConfig(level=log_level)
+logging.basicConfig(level=settings.log_level.upper())
 logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    chunker = SimpleChunker()
-    embedding_model = SentenceTransformerEmbeddingModel()
-    vectorstore = VectorStore.in_memory()
+    chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
+    embedding_model = SentenceTransformerEmbeddingModel(settings.embedding_model_name)
+
+    if settings.qdrant_url:
+        vectorstore = VectorStore.from_url(
+            settings.qdrant_url,
+            settings.qdrant_collection,
+            settings.embedding_dimension,
+        )
+    else:
+        vectorstore = VectorStore.in_memory(
+            settings.qdrant_collection,
+            settings.embedding_dimension,
+        )
     vectorstore.ensure_collection()
 
     app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore)
+    app.state.settings = settings
     yield
 
 
@@ -45,6 +57,10 @@ def get_pipeline(request: Request) -> Pipeline:
     return request.app.state.pipeline
 
 
+def get_settings(request: Request) -> Settings:
+    return request.app.state.settings
+
+
 @app.post("/api/v1/query")
 async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)):
     result = pipeline.search_document_store(request.question)
@@ -52,11 +68,19 @@ async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline
 
 
 @app.post("/api/v1/reindex")
-async def reindex(pipeline: Pipeline = Depends(get_pipeline)):
-    notes = load_notes("./data/notes", "./data/notes_sync.json")
+async def reindex(
+    pipeline: Pipeline = Depends(get_pipeline),
+    cfg: Settings = Depends(get_settings),
+):
+    notes = load_notes(cfg.notes_dir, cfg.notes_sync_state_path)
     logger.info("notes_loaded", count=len(notes))
 
-    bookmarks = load_bookmarks("./data/ff/places.sqlite", "./data/bm_sync.json")
+    bookmarks = load_bookmarks(
+        cfg.bookmarks_profile_path,
+        cfg.bookmarks_sync_state_path,
+        cfg.bookmarks_fetch_timeout,
+        cfg.bookmarks_max_content_length,
+    )
     logger.info("bookmarks_found", count=len(bookmarks))
 
     docs = notes + bookmarks
@@ -66,4 +90,4 @@ async def reindex(pipeline: Pipeline = Depends(get_pipeline)):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9002)
+    uvicorn.run(app, host=settings.host, port=settings.port)

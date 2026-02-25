@@ -70,12 +70,33 @@ All application logic depends only on these protocols. Concrete implementations 
 
 - `Pipeline` tests use inline **fake** implementations of the three ports — no real model or Qdrant instance needed.
 - `VectorStore` tests use `VectorStore.in_memory()`.
-- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides[get_pipeline]` to inject a `FakePipeline`, and `unittest.mock.patch` for the loader functions.
+- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides[get_pipeline]` to inject a `FakePipeline` and `app.dependency_overrides[get_settings]` to inject a default `Settings()`, plus `unittest.mock.patch` for the loader functions.
 - Loader tests use `tmp_path` and SQLite fixtures.
 - No external services are required to run the full test suite.
 
+### Configuration
+
+`src/config.py` defines a `Settings(BaseSettings)` class (via `pydantic-settings`). Settings are read from environment variables or a `.env` file in the project root. The `Settings` instance is created once at module level in `api.py` and injected into route handlers via the `get_settings` FastAPI dependency.
+
+| Env var | Default | Description |
+|---|---|---|
+| `HOST` | `0.0.0.0` | Server bind address |
+| `PORT` | `9002` | Server port |
+| `LOG_LEVEL` | `WARNING` | Log verbosity |
+| `QDRANT_URL` | _(none)_ | Qdrant server URL; omit to use in-memory mode |
+| `QDRANT_COLLECTION` | `lexora` | Qdrant collection name |
+| `EMBEDDING_DIMENSION` | `384` | Embedding vector size |
+| `CHUNK_SIZE` | `500` | Characters per chunk |
+| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
+| `EMBEDDING_MODEL_NAME` | `sentence-transformers/all-MiniLM-L6-v2` | HuggingFace model ID |
+| `NOTES_DIR` | `./data/notes` | Directory of `.txt` notes |
+| `NOTES_SYNC_STATE_PATH` | `./data/notes_sync.json` | Notes incremental sync state |
+| `BOOKMARKS_PROFILE_PATH` | _(none)_ | Firefox profile path; omit to auto-detect |
+| `BOOKMARKS_SYNC_STATE_PATH` | `./data/bm_sync.json` | Bookmarks incremental sync state |
+| `BOOKMARKS_FETCH_TIMEOUT` | `15` | HTTP timeout per bookmark (seconds) |
+| `BOOKMARKS_MAX_CONTENT_LENGTH` | `50000` | Max characters extracted per page |
+
 ### Notes
 
-- `LOGLEVEL` env var controls log verbosity (default: `WARNING`).
 - Logging uses structlog's keyword-argument style throughout: `logger.info("event_name", key=value)`.
 - `docs/PLAN.md` tracks the original architectural critique and the remediation history.
