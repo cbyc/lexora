@@ -68,12 +68,11 @@ class TestQueryEndpoint:
         client.post("/api/v1/query", json={"question": "what is python?"})
         assert fake.search_calls == ["what is python?"]
 
-    def test_question_over_max_length_returns_400(self, client):
-        """A question exceeding 1024 characters should return HTTP 400."""
+    def test_question_over_max_length_returns_422(self, client):
+        """A question exceeding 1024 characters should return HTTP 422."""
         app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
         response = client.post("/api/v1/query", json={"question": "x" * 1025})
-        assert response.status_code == 400
-        assert response.json()["error"] == "bad_request"
+        assert response.status_code == 422
 
     def test_question_at_max_length_returns_200(self, client):
         """A question of exactly 1024 characters should be accepted."""

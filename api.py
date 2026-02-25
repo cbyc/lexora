@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
@@ -15,8 +14,6 @@ from src.models import QueryRequest
 from src.chunker import SimpleChunker
 from src.pipeline import Pipeline
 from src.embedder import SentenceTransformerEmbeddingModel
-
-MAX_QUERY_LENGTH = 1024
 
 
 log_level = os.environ.get("LOGLEVEL", "WARNING").upper()
@@ -50,17 +47,7 @@ def get_pipeline(request: Request) -> Pipeline:
 
 @app.post("/api/v1/query")
 async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)):
-    if len(request.question) > MAX_QUERY_LENGTH:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": "bad_request",
-                "detail": f"Question exceeds maximum length of {MAX_QUERY_LENGTH} characters.",
-            },
-        )
-
     result = pipeline.search_document_store(request.question)
-
     return result
 
 
