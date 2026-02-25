@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    chunker = SimpleChunker(500, 50)
+    chunker = SimpleChunker()
     embedding_model = SentenceTransformerEmbeddingModel()
     vectorstore = VectorStore.in_memory()
     vectorstore.ensure_collection()

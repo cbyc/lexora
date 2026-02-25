@@ -1,5 +1,5 @@
 class SimpleChunker:
-    def __init__(self, chunk_size: int, overlap: int):
+    def __init__(self, chunk_size: int = 500, overlap: int = 50):
         self._chunk_size = chunk_size
         self._overlap = overlap
 
