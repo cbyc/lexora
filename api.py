@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI):
     chunker = SimpleChunker(500, 50)
     embedding_model = SentenceTransformerEmbeddingModel()
-    vectorstore = VectorStore()
+    vectorstore = VectorStore.in_memory()
     app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore)
     yield
 

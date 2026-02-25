@@ -16,26 +16,50 @@ class VectorStore:
 
     def __init__(
         self,
+        client: QdrantClient,
         collection_name: str = "lexora",
-        url: str | None = None,
-        use_memory: bool = True,
         embedding_dimension: int = 384,
     ):
-        """Initialize the vector store client.
+        """Initialise the vector store with a pre-built Qdrant client.
+
+        Prefer the factory classmethods `in_memory()` and `from_url()`
+        over calling this constructor directly.
 
         Args:
-            collection_name: Name of the Qdrant collection.
-            url: Qdrant server URL (ignored if use_memory is True).
-            use_memory: Use in-memory storage for development/testing.
+            client: A fully configured QdrantClient instance.
+            collection_name: Name of the Qdrant collection to use.
             embedding_dimension: Dimension of the embedding vectors.
         """
+        self._client = client
         self._collection_name = collection_name
         self._embedding_dimension = embedding_dimension
 
-        if use_memory:
-            self._client = QdrantClient(location=":memory:")
-        else:
-            self._client = QdrantClient(url=url)
+    
+    @classmethod
+    def in_memory(cls, collection_name: str = "lexora", embedding_dimension: int = 384) -> "VectorStore":
+        """Create a VectorStore backed by an ephemeral in-memory Qdrant instance.
+
+        Intended for development and testing — data is lost when the process exits.
+
+        Args:
+            collection_name: Name of the Qdrant collection to use.
+            embedding_dimension: Dimension of the embedding vectors.
+        """
+        client = QdrantClient(location=":memory:")
+        return cls(client, collection_name, embedding_dimension)
+
+    @classmethod
+    def from_url(cls, url: str, collection_name: str = "lexora", embedding_dimension: int = 384) -> "VectorStore":
+        """Create a VectorStore connected to a remote Qdrant server.
+
+        Args:
+            url: URL of the Qdrant server (e.g. 'http://localhost:6333').
+            collection_name: Name of the Qdrant collection to use.
+            embedding_dimension: Dimension of the embedding vectors.
+        """
+        client = QdrantClient(url=url)
+        return cls(client, collection_name, embedding_dimension)
+    
 
     def ensure_collection(self) -> None:
         """Create collection if it doesn't exist."""

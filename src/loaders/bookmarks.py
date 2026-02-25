@@ -67,6 +67,22 @@ def find_firefox_profile() -> Path | None:
 
 
 def resolve_profile_path(path: str | Path | None) -> Path | None:
+    """Resolve a caller-supplied profile path to an existing profile directory.
+
+    Accepts three forms:
+    - ``None`` or ``"auto"``: auto-detect the default Firefox profile.
+    - A path to ``places.sqlite`` directly: returns the parent directory.
+    - A path to the profile directory: returns it unchanged.
+
+    Returns ``None`` (and logs a warning) if the path cannot be resolved to
+    an existing directory.
+
+    Args:
+        path: Caller-supplied path hint, or None/``"auto"`` for auto-detection.
+
+    Returns:
+        Resolved profile directory path, or None if unavailable.
+    """
     if path is None or str(path) == "auto":
         resolved_path = find_firefox_profile()
         if resolved_path is None:
@@ -165,6 +181,20 @@ def _query_bookmarks(
 def filter_bookmarks(
     bookmarks: list[BookmarkRecord], last_sync_time: float | None
 ) -> tuple[list[BookmarkRecord], float]:
+    """Filter bookmarks to only those added after the last sync, and track the latest timestamp.
+
+    Args:
+        bookmarks: Full list of bookmark records to filter.
+        last_sync_time: Timestamp of the previous sync (microseconds since epoch),
+            or None if this is the first sync.
+
+    Returns:
+        A tuple of (filtered_bookmarks, latest_timestamp) where:
+        - filtered_bookmarks contains only records whose date_added is strictly
+          greater than last_sync_time.
+        - latest_timestamp is the maximum date_added among the filtered records,
+          or last_sync_time (or 0) if no records passed the filter.
+    """
     filtered_bookmarks = []
     since = last_sync_time or 0
     latest = since
@@ -215,6 +245,18 @@ def fetch_page_content(
 def fetch_documents(
     bookmarks: list[BookmarkRecord], timeout: int, max_length: int
 ) -> list[Document]:
+    """Fetch web content for a list of bookmarks and return them as Documents.
+
+    Bookmarks whose content cannot be fetched or extracted are silently skipped.
+
+    Args:
+        bookmarks: Bookmark records to fetch content for.
+        timeout: HTTP request timeout in seconds.
+        max_length: Maximum number of characters to retain per page.
+
+    Returns:
+        List of Document objects, one per successfully fetched bookmark.
+    """
     documents = []
     for bookmark in bookmarks:
         content = fetch_page_content(

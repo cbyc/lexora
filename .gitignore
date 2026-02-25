@@ -19,3 +19,4 @@ build/
 .gemini_api_key
 *.sqlite-*
 data/
+docs/
