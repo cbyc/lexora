@@ -66,6 +66,23 @@ def find_firefox_profile() -> Path | None:
     return None
 
 
+def resolve_profile_path(path: str | Path | None) -> Path | None:
+    if path is None or str(path) == "auto":
+        resolved_path = find_firefox_profile()
+        if resolved_path is None:
+            logger.info("No Firefox profile found. Skipping bookmark sync.")
+            return None
+    else:
+        resolved_path = Path(path)
+        # Accept path to places.sqlite directly or to the profile directory
+        if resolved_path.name == "places.sqlite" and resolved_path.is_file():
+            resolved_path = resolved_path.parent
+        if not resolved_path.exists():
+            logger.warning("Firefox profile not found at: %s", resolved_path)
+            return None
+    return resolved_path
+
+
 def read_bookmarks(
     profile_path: Path,
     since_timestamp: int | None = None,
@@ -145,6 +162,19 @@ def _query_bookmarks(
         conn.close()
 
 
+def filter_bookmarks(
+    bookmarks: list[BookmarkRecord], last_sync_time: float | None
+) -> tuple[list[BookmarkRecord], float]:
+    filtered_bookmarks = []
+    since = last_sync_time or 0
+    latest = since
+    for b in bookmarks:
+        if b.date_added > since:
+            filtered_bookmarks.append(b)
+            latest = max(latest, b.date_added)
+    return (filtered_bookmarks, latest)
+
+
 def fetch_page_content(
     url: str,
     timeout: int = 15,
@@ -182,6 +212,26 @@ def fetch_page_content(
         return None
 
 
+def fetch_documents(
+    bookmarks: list[BookmarkRecord], timeout: int, max_length: int
+) -> list[Document]:
+    documents = []
+    for bookmark in bookmarks:
+        content = fetch_page_content(
+            bookmark.url,
+            timeout=timeout,
+            max_length=max_length,
+        )
+        if content:
+            documents.append(
+                Document(
+                    content=content,
+                    source=bookmark.url,
+                )
+            )
+    return documents
+
+
 def load_bookmarks(
     profile_path: str | Path | None = None,
     sync_state_path: str | Path = "data/bookmarks_sync_state.json",
@@ -203,19 +253,7 @@ def load_bookmarks(
         List of Document objects from newly synced bookmarks.
     """
     # Resolve profile path
-    if profile_path is None or str(profile_path) == "auto":
-        resolved_path = find_firefox_profile()
-        if resolved_path is None:
-            logger.info("No Firefox profile found. Skipping bookmark sync.")
-            return []
-    else:
-        resolved_path = Path(profile_path)
-        # Accept path to places.sqlite directly or to the profile directory
-        if resolved_path.name == "places.sqlite" and resolved_path.is_file():
-            resolved_path = resolved_path.parent
-        if not resolved_path.exists():
-            logger.warning("Firefox profile not found at: %s", resolved_path)
-            return []
+    resolved_path = resolve_profile_path(profile_path)
 
     # Load sync state
     last_sync = load_sync_state(sync_state_path)
@@ -226,30 +264,15 @@ def load_bookmarks(
         logger.info("No new bookmarks found since last sync.")
         return []
 
+    # Filter bookmarks from the last sync timestamp
+    filtered_bookmarks, latest_timestamp = filter_bookmarks(bookmarks, last_sync)
     logger.info("Found %d new bookmarks to process.", len(bookmarks))
 
     # Fetch content and create documents
-    documents = []
-    max_timestamp = last_sync or 0
-
-    for bookmark in bookmarks:
-        content = fetch_page_content(
-            bookmark.url,
-            timeout=fetch_timeout,
-            max_length=max_content_length,
-        )
-        if content:
-            documents.append(
-                Document(
-                    content=content,
-                    source=bookmark.url,
-                )
-            )
-        max_timestamp = max(max_timestamp, bookmark.date_added)
+    documents = fetch_documents(filtered_bookmarks, fetch_timeout, max_content_length)
 
     # Save sync state with the latest timestamp
-    if max_timestamp > (last_sync or 0):
-        save_sync_state(sync_state_path, max_timestamp)
+    save_sync_state(sync_state_path, latest_timestamp)
 
     logger.info("Loaded %d bookmark documents.", len(documents))
     return documents

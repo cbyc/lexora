@@ -9,9 +9,13 @@ import pytest
 from src.loaders.bookmarks import (
     BookmarkRecord,
     _query_bookmarks,
+    fetch_documents,
     fetch_page_content,
+    filter_bookmarks,
     read_bookmarks,
+    resolve_profile_path,
 )
+from src.loaders.models import Document
 from src.loaders.sync_state import load_sync_state, save_sync_state
 
 
@@ -191,3 +195,145 @@ class TestFetchPageContent:
         result = fetch_page_content("https://example.com", max_length=50)
         assert result is not None
         assert len(result) == 50
+
+
+class TestResolveProfilePath:
+    """Tests for resolve_profile_path."""
+
+    def test_none_triggers_auto_detect(self, tmp_path: Path):
+        """None should delegate to find_firefox_profile."""
+        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=tmp_path):
+            result = resolve_profile_path(None)
+        assert result == tmp_path
+
+    def test_auto_string_triggers_auto_detect(self, tmp_path: Path):
+        """'auto' should behave identically to None."""
+        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=tmp_path):
+            result = resolve_profile_path("auto")
+        assert result == tmp_path
+
+    def test_returns_none_when_no_profile_found(self):
+        """Should return None when auto-detection finds no profile."""
+        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=None):
+            result = resolve_profile_path(None)
+        assert result is None
+
+    def test_places_sqlite_path_returns_parent_directory(self, tmp_path: Path):
+        """A direct path to places.sqlite should resolve to its parent directory."""
+        db = tmp_path / "places.sqlite"
+        db.touch()
+        result = resolve_profile_path(db)
+        assert result == tmp_path
+
+    def test_profile_directory_returned_as_is(self, tmp_path: Path):
+        """An existing profile directory path should be returned unchanged."""
+        result = resolve_profile_path(tmp_path)
+        assert result == tmp_path
+
+    def test_nonexistent_path_returns_none(self):
+        """A path that does not exist on disk should return None."""
+        result = resolve_profile_path("/nonexistent/path/to/profile")
+        assert result is None
+
+
+class TestFilterBookmarks:
+    """Tests for filter_bookmarks."""
+
+    def test_empty_list_returns_empty_and_zero(self):
+        """An empty input should return an empty list and 0 as the latest timestamp."""
+        result, latest = filter_bookmarks([], None)
+        assert result == []
+        assert latest == 0
+
+    def test_no_last_sync_returns_all_bookmarks(self):
+        """With no prior sync, all bookmarks should be returned."""
+        bookmarks = [
+            BookmarkRecord("https://a.com", "A", 1700000000000000),
+            BookmarkRecord("https://b.com", "B", 1700100000000000),
+        ]
+        result, _ = filter_bookmarks(bookmarks, None)
+        assert len(result) == 2
+
+    def test_filters_bookmarks_at_or_before_last_sync(self):
+        """Bookmarks added at or before last_sync_time should be excluded."""
+        bookmarks = [
+            BookmarkRecord("https://a.com", "A", 1700000000000000),
+            BookmarkRecord("https://b.com", "B", 1700100000000000),
+        ]
+        result, _ = filter_bookmarks(bookmarks, 1700000000000000)
+        assert len(result) == 1
+        assert result[0].url == "https://b.com"
+
+    def test_bookmark_exactly_at_last_sync_is_excluded(self):
+        """A bookmark whose date_added equals last_sync_time must not be included."""
+        bookmarks = [BookmarkRecord("https://a.com", "A", 1700000000000000)]
+        result, _ = filter_bookmarks(bookmarks, 1700000000000000)
+        assert result == []
+
+    def test_returns_max_timestamp_of_filtered_bookmarks(self):
+        """The returned latest timestamp should be the max date_added of accepted bookmarks."""
+        bookmarks = [
+            BookmarkRecord("https://a.com", "A", 1700100000000000),
+            BookmarkRecord("https://b.com", "B", 1700200000000000),
+            BookmarkRecord("https://c.com", "C", 1700300000000000),
+        ]
+        _, latest = filter_bookmarks(bookmarks, 1700000000000000)
+        assert latest == 1700300000000000
+
+    def test_returns_last_sync_time_when_nothing_passes_filter(self):
+        """When no bookmark passes the filter, latest should equal last_sync_time."""
+        bookmarks = [BookmarkRecord("https://a.com", "A", 1700000000000000)]
+        _, latest = filter_bookmarks(bookmarks, 1700100000000000)
+        assert latest == 1700100000000000
+
+
+class TestFetchDocuments:
+    """Tests for fetch_documents."""
+
+    def test_empty_list_returns_empty(self):
+        """An empty bookmark list should return an empty document list."""
+        result = fetch_documents([], timeout=15, max_length=50000)
+        assert result == []
+
+    @patch("src.loaders.bookmarks.fetch_page_content")
+    def test_successful_fetch_produces_document(self, mock_fetch):
+        """A bookmark whose content is fetched should produce one Document."""
+        mock_fetch.return_value = "page content"
+        bookmarks = [BookmarkRecord("https://example.com", "Example", 1700000000000000)]
+        result = fetch_documents(bookmarks, timeout=15, max_length=50000)
+        assert len(result) == 1
+        assert isinstance(result[0], Document)
+        assert result[0].content == "page content"
+        assert result[0].source == "https://example.com"
+
+    @patch("src.loaders.bookmarks.fetch_page_content")
+    def test_failed_fetch_is_skipped(self, mock_fetch):
+        """A bookmark whose content cannot be fetched should be omitted."""
+        mock_fetch.return_value = None
+        bookmarks = [BookmarkRecord("https://broken.com", "Broken", 1700000000000000)]
+        result = fetch_documents(bookmarks, timeout=15, max_length=50000)
+        assert result == []
+
+    @patch("src.loaders.bookmarks.fetch_page_content")
+    def test_partial_failures_return_successful_only(self, mock_fetch):
+        """Only bookmarks with successful fetches should appear in the result."""
+        mock_fetch.side_effect = ["content for a", None, "content for c"]
+        bookmarks = [
+            BookmarkRecord("https://a.com", "A", 1700000000000000),
+            BookmarkRecord("https://b.com", "B", 1700100000000000),
+            BookmarkRecord("https://c.com", "C", 1700200000000000),
+        ]
+        result = fetch_documents(bookmarks, timeout=15, max_length=50000)
+        assert len(result) == 2
+        assert result[0].source == "https://a.com"
+        assert result[1].source == "https://c.com"
+
+    @patch("src.loaders.bookmarks.fetch_page_content")
+    def test_passes_timeout_and_max_length_to_fetch(self, mock_fetch):
+        """timeout and max_length should be forwarded to fetch_page_content."""
+        mock_fetch.return_value = "content"
+        bookmarks = [BookmarkRecord("https://example.com", "Example", 1700000000000000)]
+        fetch_documents(bookmarks, timeout=30, max_length=1000)
+        mock_fetch.assert_called_once_with(
+            "https://example.com", timeout=30, max_length=1000
+        )
