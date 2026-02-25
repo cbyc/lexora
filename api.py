@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
-from src.models import QueryRequest
+from src.models import QueryRequest, ReindexResponse
 from src.chunker import SimpleChunker
 from src.pipeline import Pipeline
 from src.embedder import SentenceTransformerEmbeddingModel
@@ -61,6 +61,8 @@ async def reindex(pipeline: Pipeline = Depends(get_pipeline)):
 
     docs = notes + bookmarks
     pipeline.add_docs(docs)
+
+    return ReindexResponse(notes_indexed=len(notes), bookmarks_indexed=len(bookmarks))
 
 
 if __name__ == "__main__":

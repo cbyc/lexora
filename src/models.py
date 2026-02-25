@@ -11,3 +11,8 @@ class Chunk:
 
 class QueryRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1024)
+
+
+class ReindexResponse(BaseModel):
+    notes_indexed: int
+    bookmarks_indexed: int

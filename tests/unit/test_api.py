@@ -128,3 +128,32 @@ class TestReindexEndpoint:
             client.post("/api/v1/reindex")
         docs_passed = fake.add_docs_calls[0]
         assert len(docs_passed) == 2
+
+    def test_response_body_has_expected_fields(self, client):
+        """Response body should contain notes_indexed and bookmarks_indexed fields."""
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
+        with (
+            patch("api.load_notes", return_value=[]),
+            patch("api.load_bookmarks", return_value=[]),
+        ):
+            response = client.post("/api/v1/reindex")
+        body = response.json()
+        assert "notes_indexed" in body
+        assert "bookmarks_indexed" in body
+
+    def test_response_counts_reflect_loaded_documents(self, client):
+        """notes_indexed and bookmarks_indexed should match the number of docs loaded."""
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
+        notes = [
+            Document(content="n", source="a.txt"),
+            Document(content="n2", source="b.txt"),
+        ]
+        bookmarks = [Document(content="b", source="https://example.com")]
+        with (
+            patch("api.load_notes", return_value=notes),
+            patch("api.load_bookmarks", return_value=bookmarks),
+        ):
+            response = client.post("/api/v1/reindex")
+        body = response.json()
+        assert body["notes_indexed"] == 2
+        assert body["bookmarks_indexed"] == 1
