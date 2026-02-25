@@ -67,10 +67,10 @@ async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline
 @app.post("/api/v1/reindex")
 async def reindex(pipeline: Pipeline = Depends(get_pipeline)):
     notes = load_notes("./data/notes", "./data/notes_sync.json")
-    logger.info(f"{len(notes)} notes found.")
+    logger.info("notes_loaded", count=len(notes))
 
     bookmarks = load_bookmarks("./data/ff/places.sqlite", "./data/bm_sync.json")
-    logger.info(f"{len(bookmarks)} bookmarks found.")
+    logger.info("bookmarks_found", count=len(bookmarks))
 
     docs = notes + bookmarks
     pipeline.add_docs(docs)

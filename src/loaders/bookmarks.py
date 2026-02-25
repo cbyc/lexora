@@ -86,7 +86,7 @@ def resolve_profile_path(path: str | Path | None) -> Path | None:
     if path is None or str(path) == "auto":
         resolved_path = find_firefox_profile()
         if resolved_path is None:
-            logger.info("No Firefox profile found. Skipping bookmark sync.")
+            logger.info("firefox_profile_not_found", path=path)
             return None
     else:
         resolved_path = Path(path)
@@ -94,7 +94,7 @@ def resolve_profile_path(path: str | Path | None) -> Path | None:
         if resolved_path.name == "places.sqlite" and resolved_path.is_file():
             resolved_path = resolved_path.parent
         if not resolved_path.exists():
-            logger.warning("Firefox profile not found at: %s", resolved_path)
+            logger.warning("firefox_profile_not_found", path=resolved_path)
             return None
     return resolved_path
 
@@ -225,12 +225,12 @@ def fetch_page_content(
     try:
         downloaded = trafilatura.fetch_url(url)
         if downloaded is None:
-            logger.warning("Failed to download: %s", url)
+            logger.warning("fetch_url_returns_none", url=url)
             return None
 
         text = trafilatura.extract(downloaded)
         if text is None:
-            logger.warning("Failed to extract content from: %s", url)
+            logger.warning("extract_url_returns_none", url=url)
             return None
 
         if len(text) > max_length:
@@ -238,7 +238,7 @@ def fetch_page_content(
 
         return text
     except Exception as e:
-        logger.warning("Error fetching %s: %s", url, e)
+        logger.warning("fetch_url_failed", url=url, error=e)
         return None
 
 
@@ -303,12 +303,12 @@ def load_bookmarks(
     # Read bookmarks (incremental if we have a last sync timestamp)
     bookmarks = read_bookmarks(resolved_path, since_timestamp=last_sync)
     if not bookmarks:
-        logger.info("No new bookmarks found since last sync.")
+        logger.info("bookmarks_not_found")
         return []
 
     # Filter bookmarks from the last sync timestamp
     filtered_bookmarks, latest_timestamp = filter_bookmarks(bookmarks, last_sync)
-    logger.info("Found %d new bookmarks to process.", len(bookmarks))
+    logger.info("bokkmarks_found", count=len(bookmarks))
 
     # Fetch content and create documents
     documents = fetch_documents(filtered_bookmarks, fetch_timeout, max_content_length)
@@ -316,5 +316,5 @@ def load_bookmarks(
     # Save sync state with the latest timestamp
     save_sync_state(sync_state_path, latest_timestamp)
 
-    logger.info("Loaded %d bookmark documents.", len(documents))
+    logger.info("bookmarks_fetched", count=len(documents))
     return documents
