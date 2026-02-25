@@ -6,11 +6,12 @@ import uvicorn
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.ask_agent import PydanticAIAskAgent
 from src.config import Settings
 from src.vector_store import VectorStore
 from src.loaders.notes import load_notes
 from src.loaders.bookmarks import load_bookmarks
-from src.models import QueryRequest, ReindexResponse
+from src.models import AskResponse, QueryRequest, ReindexResponse
 from src.chunker import SimpleChunker
 from src.pipeline import Pipeline
 from src.embedder import SentenceTransformerEmbeddingModel
@@ -39,7 +40,8 @@ async def lifespan(app: FastAPI):
         )
     vectorstore.ensure_collection()
 
-    app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore)
+    ask_agent = PydanticAIAskAgent(settings.llm_model)
+    app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
     app.state.settings = settings
     yield
 
@@ -65,6 +67,13 @@ def get_settings(request: Request) -> Settings:
 async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)):
     result = pipeline.search_document_store(request.question)
     return result
+
+
+@app.post("/api/v1/ask")
+async def ask(
+    request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)
+) -> AskResponse:
+    return await pipeline.ask(request.question)
 
 
 @app.post("/api/v1/reindex")

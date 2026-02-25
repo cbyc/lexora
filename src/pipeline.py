@@ -1,6 +1,6 @@
-from src.ports import Chunker, EmbeddingModel, DocumentStore
+from src.ports import AskAgent, Chunker, EmbeddingModel, DocumentStore
 from src.loaders.models import Document
-from src.models import Chunk
+from src.models import AskResponse, Chunk
 
 
 class Pipeline:
@@ -9,10 +9,12 @@ class Pipeline:
         chunker: Chunker,
         embedding_model: EmbeddingModel,
         document_store: DocumentStore,
+        ask_agent: AskAgent,
     ):
         self._chunker = chunker
         self._embedding_model = embedding_model
         self._document_store = document_store
+        self._ask_agent = ask_agent
 
     def add_docs(self, docs: list[Document]):
         for doc in docs:
@@ -30,3 +32,7 @@ class Pipeline:
         query_embedding = self._embedding_model.encode(query)
         result = self._document_store.search(query_embedding)
         return result
+
+    async def ask(self, question: str) -> AskResponse:
+        chunks = self.search_document_store(question)
+        return await self._ask_agent.answer(question, chunks)

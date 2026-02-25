@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.133.0",
+    "pydantic-ai>=1.63.0",
     "pydantic-settings>=2.13.1",
     "pytest>=9.0.2",
     "qdrant-client>=1.17.0",
@@ -18,9 +19,10 @@ dependencies = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-dependencies = [
-    "docling>=2.74.0",
-    "pydantic>=2.12.5",
-    "pytest>=9.0.2",
-    "trafilatura>=2.0.0",
+testpaths = ["tests/unit"]
+markers = ["evals: requires a live LLM API key; run with pytest tests/evals/"]
+
+[dependency-groups]
+dev = [
+    "pydantic-ai[evals]>=1.63.0",
 ]

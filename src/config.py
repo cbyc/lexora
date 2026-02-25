@@ -30,3 +30,6 @@ class Settings(BaseSettings):
     bookmarks_sync_state_path: str = "./data/bm_sync.json"
     bookmarks_fetch_timeout: int = 15
     bookmarks_max_content_length: int = 50000
+
+    # LLM
+    llm_model: str = "google-gla:gemini-2.0-flash"

@@ -1,5 +1,5 @@
 from typing import Protocol
-from src.models import Chunk
+from src.models import AskResponse, Chunk
 
 
 class Chunker(Protocol):
@@ -20,3 +20,7 @@ class DocumentStore(Protocol):
     def search(
         self, query_embedding: list[float], top_k: int = 5, score_threshold: float = 0.0
     ) -> list[Chunk]: ...
+
+
+class AskAgent(Protocol):
+    async def answer(self, question: str, chunks: list[Chunk]) -> AskResponse: ...

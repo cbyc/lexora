@@ -28,15 +28,16 @@ uv run ruff format .
 
 ## Architecture
 
-Lexora-Link is a personal knowledge retrieval API. It ingests documents from two sources (local notes, Firefox bookmarks), embeds them into a vector store, and exposes a semantic search endpoint.
+Lexora-Link is a personal knowledge retrieval API. It ingests documents from two sources (local notes, Firefox bookmarks), embeds them into a vector store, and exposes both a semantic search endpoint and an LLM-powered question-answering endpoint.
 
 ### Ports (Abstractions)
 
-`src/ports.py` defines three `Protocol` classes that form the boundary between the application and infrastructure:
+`src/ports.py` defines four `Protocol` classes that form the boundary between the application and infrastructure:
 
 - `Chunker` — `chunk(text) -> list[str]`
 - `EmbeddingModel` — `encode(text) -> list[float]`
 - `DocumentStore` — `ensure_collection()`, `add_chunks(...)`, `search(...)`
+- `AskAgent` — `async answer(question, chunks) -> AskResponse`
 
 All application logic depends only on these protocols. Concrete implementations are wired at startup in `api.py`.
 
@@ -51,28 +52,33 @@ All application logic depends only on these protocols. Concrete implementations 
 
 3. **Embedder** (`src/embedder.py`): `SentenceTransformerEmbeddingModel` implements `EmbeddingModel`. Wraps `sentence-transformers/all-MiniLM-L6-v2`, produces 384-dimensional `list[float]` vectors.
 
-4. **Pipeline** (`src/pipeline.py`): Application-layer orchestrator. Accepts the three ports via constructor injection and owns the chunk → embed → store flow for indexing, and the encode → search flow for querying. This is the only class that coordinates across all three ports.
+4. **Pipeline** (`src/pipeline.py`): Application-layer orchestrator. Accepts the four ports via constructor injection and owns the chunk → embed → store flow for indexing, the encode → search flow for querying, and the search → LLM flow for question answering. This is the only class that coordinates across all ports.
 
 5. **Vector Store** (`src/vector_store.py`): `VectorStore` implements `DocumentStore`. Wraps Qdrant. Point IDs are deterministic `uuid5` hashes of `source:chunk_index:text`, enabling idempotent upserts. Cosine distance. Use the factory classmethods rather than the constructor directly:
    - `VectorStore.in_memory()` — ephemeral, for development and tests
    - `VectorStore.from_url(url)` — connects to a remote Qdrant server
 
-6. **API** (`api.py`): FastAPI app on port `9002`. Constructs all concrete implementations and wires them into `Pipeline` inside the `lifespan` context, storing the result on `app.state.pipeline`. The `get_pipeline` dependency function exposes it to route handlers via `Depends`. Exposes two endpoints:
-   - `POST /api/v1/query` — Accepts `{"question": "..."}`, delegates to `pipeline.search_document_store`. Question length validated by Pydantic (`min_length=1`, `max_length=1024`).
+6. **Ask Agent** (`src/ask_agent.py`): `PydanticAIAskAgent` implements `AskAgent`. Uses pydantic-ai to run an LLM with structured output (`AskResponse`). Formats retrieved chunks as `SOURCE: <path>\n<text>` blocks and instructs the LLM to answer strictly from the provided context. Provider and model are selected via the `LLM_MODEL` env var; API keys are read from the environment by pydantic-ai automatically.
+
+7. **API** (`api.py`): FastAPI app on port `9002`. Constructs all concrete implementations and wires them into `Pipeline` inside the `lifespan` context, storing the result on `app.state.pipeline`. The `get_pipeline` dependency function exposes it to route handlers via `Depends`. Exposes three endpoints:
+   - `POST /api/v1/query` — Semantic search; returns up to 5 ranked `Chunk` objects.
+   - `POST /api/v1/ask` — LLM-augmented QA; returns `{"text": "...", "sources": [...]}`.
    - `POST /api/v1/reindex` — Loads notes and bookmarks, delegates to `pipeline.add_docs`. Returns `ReindexResponse(notes_indexed, bookmarks_indexed)`.
 
 ### Key Models
 
 - `src/loaders/models.py` — `Document(content, source)`: raw loaded document.
-- `src/models.py` — `Chunk(text, source, chunk_index)`: a chunked piece of a document; `QueryRequest` (Pydantic, with length constraints); `ReindexResponse` (Pydantic).
+- `src/models.py` — `Chunk(text, source, chunk_index)`; `QueryRequest`; `ReindexResponse`; `AskResponse(text, sources)` with a validator that rejects answers with empty sources; `NOT_FOUND` sentinel string.
 
 ### Testing Approach
 
-- `Pipeline` tests use inline **fake** implementations of the three ports — no real model or Qdrant instance needed.
+- Unit tests live in `tests/unit/` and run with no external dependencies.
+- `Pipeline` tests use inline **fake** implementations of all four ports.
 - `VectorStore` tests use `VectorStore.in_memory()`.
+- `PydanticAIAskAgent` tests mock pydantic-ai's `Agent` with `AsyncMock` — no real LLM call.
 - API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides[get_pipeline]` to inject a `FakePipeline` and `app.dependency_overrides[get_settings]` to inject a default `Settings()`, plus `unittest.mock.patch` for the loader functions.
 - Loader tests use `tmp_path` and SQLite fixtures.
-- No external services are required to run the full test suite.
+- Eval tests live in `tests/evals/` and require a real LLM API key. Run them separately: `uv run pytest tests/evals/`.
 
 ### Configuration
 
@@ -95,8 +101,13 @@ All application logic depends only on these protocols. Concrete implementations 
 | `BOOKMARKS_SYNC_STATE_PATH` | `./data/bm_sync.json` | Bookmarks incremental sync state |
 | `BOOKMARKS_FETCH_TIMEOUT` | `15` | HTTP timeout per bookmark (seconds) |
 | `BOOKMARKS_MAX_CONTENT_LENGTH` | `50000` | Max characters extracted per page |
+| `LLM_MODEL` | `google-gla:gemini-2.0-flash` | pydantic-ai model string for `/ask` |
+| `GEMINI_API_KEY` | _(none)_ | Gemini API key (read by pydantic-ai) |
+| `OPENAI_API_KEY` | _(none)_ | OpenAI API key (read by pydantic-ai) |
+| `ANTHROPIC_API_KEY` | _(none)_ | Anthropic API key (read by pydantic-ai) |
 
 ### Notes
 
 - Logging uses structlog's keyword-argument style throughout: `logger.info("event_name", key=value)`.
 - `docs/PLAN.md` tracks the original architectural critique and the remediation history.
+- `docs/LLM_PLAN.md` describes the design and implementation of the `/ask` endpoint.

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 @dataclass
@@ -16,3 +16,17 @@ class QueryRequest(BaseModel):
 class ReindexResponse(BaseModel):
     notes_indexed: int
     bookmarks_indexed: int
+
+
+NOT_FOUND = "I couldn't find relevant information."
+
+
+class AskResponse(BaseModel):
+    text: str
+    sources: list[str]
+
+    @model_validator(mode="after")
+    def sources_required_when_answered(self) -> "AskResponse":
+        if not self.sources and self.text != NOT_FOUND:
+            raise ValueError("sources must not be empty when an answer is provided")
+        return self

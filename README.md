@@ -1,6 +1,6 @@
 # Lexora-Link
 
-A personal knowledge retrieval API. Ingests documents from local notes and Firefox bookmarks, embeds them into a vector store, and exposes a semantic search endpoint.
+A personal knowledge retrieval API. Ingests documents from local notes and Firefox bookmarks, embeds them into a vector store, and exposes a semantic search endpoint and an LLM-powered question-answering endpoint.
 
 ## Setup
 
@@ -35,6 +35,10 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=50
 BOOKMARKS_FETCH_TIMEOUT=15
 BOOKMARKS_MAX_CONTENT_LENGTH=50000
+
+# LLM — provider API key is read from the environment by pydantic-ai
+LLM_MODEL=google-gla:gemini-2.0-flash
+GEMINI_API_KEY=                # or OPENAI_API_KEY / ANTHROPIC_API_KEY
 ```
 
 ## Data sources
@@ -89,11 +93,43 @@ curl -X POST http://localhost:9002/api/v1/query \
 
 `question` must be between 1 and 1024 characters. Returns up to 5 ranked chunks.
 
+### `POST /api/v1/ask`
+
+LLM-augmented question answering. Retrieves relevant chunks from the vector store, passes them to the configured LLM, and returns a grounded answer with source citations. The LLM answers strictly from the retrieved context — if the context does not contain a relevant answer, it returns the not-found response.
+
+Requires a provider API key (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`) and the `LLM_MODEL` env var to be set.
+
+```bash
+curl -X POST http://localhost:9002/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "sourdough starter hydration"}'
+```
+
+```json
+{
+  "text": "A 100% hydration starter uses equal weights of flour and water ...",
+  "sources": ["data/notes/recipe_sourdough.txt"]
+}
+```
+
+If the context does not contain a relevant answer:
+
+```json
+{"text": "I couldn't find relevant information.", "sources": []}
+```
+
+`question` must be between 1 and 1024 characters.
+
+**Note:** `/query` and `/ask` use the same vector search under the hood. `/query` returns all retrieved chunks regardless of whether they answer the question. `/ask` asks the LLM whether the chunks actually answer the question — so it is possible to get results from `/query` and a not-found response from `/ask` when the retrieved chunks are topically related but do not contain a direct answer.
+
 ## Development
 
 ```bash
-# Run tests
+# Run unit tests (no external dependencies required)
 uv run pytest
+
+# Run LLM evals (requires a provider API key)
+LLM_MODEL=google-gla:gemini-2.0-flash GEMINI_API_KEY=... uv run pytest tests/evals/
 
 # Lint / format
 uv run ruff check .

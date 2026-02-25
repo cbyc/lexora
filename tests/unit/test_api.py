@@ -8,14 +8,22 @@ from fastapi.testclient import TestClient
 from api import app, get_pipeline, get_settings
 from src.config import Settings
 from src.loaders.models import Document
-from src.models import Chunk
+from src.models import NOT_FOUND, AskResponse, Chunk
 
 
 class FakePipeline:
-    def __init__(self, search_result: list[Chunk] | None = None):
+    def __init__(
+        self,
+        search_result: list[Chunk] | None = None,
+        ask_response: AskResponse | None = None,
+    ):
         self._search_result = search_result or []
+        self._ask_response = ask_response or AskResponse(
+            text="An answer.", sources=["notes/a.txt"]
+        )
         self.search_calls: list[str] = []
         self.add_docs_calls: list[list[Document]] = []
+        self.ask_calls: list[str] = []
 
     def search_document_store(self, query: str) -> list[Chunk]:
         self.search_calls.append(query)
@@ -23,6 +31,10 @@ class FakePipeline:
 
     def add_docs(self, docs: list[Document]) -> None:
         self.add_docs_calls.append(docs)
+
+    async def ask(self, question: str) -> AskResponse:
+        self.ask_calls.append(question)
+        return self._ask_response
 
 
 @pytest.fixture
@@ -163,3 +175,54 @@ class TestReindexEndpoint:
         body = response.json()
         assert body["notes_indexed"] == 2
         assert body["bookmarks_indexed"] == 1
+
+
+class TestAskEndpoint:
+    def test_returns_200(self, client):
+        """A well-formed question should return HTTP 200."""
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
+        response = client.post("/api/v1/ask", json={"question": "What is Python?"})
+        assert response.status_code == 200
+
+    def test_response_has_text_and_sources(self, client):
+        """Response body must contain text and sources fields."""
+        response_val = AskResponse(
+            text="Python is a language.", sources=["notes/py.txt"]
+        )
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline(
+            ask_response=response_val
+        )
+        response = client.post("/api/v1/ask", json={"question": "What is Python?"})
+        body = response.json()
+        assert body["text"] == "Python is a language."
+        assert body["sources"] == ["notes/py.txt"]
+
+    def test_not_found_response_is_returned(self, client):
+        """NOT_FOUND response from pipeline is forwarded as-is."""
+        not_found = AskResponse(text=NOT_FOUND, sources=[])
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline(
+            ask_response=not_found
+        )
+        response = client.post("/api/v1/ask", json={"question": "capital of France?"})
+        body = response.json()
+        assert body["text"] == NOT_FOUND
+        assert body["sources"] == []
+
+    def test_passes_question_to_pipeline(self, client):
+        """The exact question string should be forwarded to pipeline.ask."""
+        fake = FakePipeline()
+        app.dependency_overrides[get_pipeline] = lambda: fake
+        client.post("/api/v1/ask", json={"question": "What is the GIL?"})
+        assert fake.ask_calls == ["What is the GIL?"]
+
+    def test_empty_question_returns_422(self, client):
+        """An empty question string should fail Pydantic validation."""
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
+        response = client.post("/api/v1/ask", json={"question": ""})
+        assert response.status_code == 422
+
+    def test_missing_body_returns_422(self, client):
+        """A request with no body should fail Pydantic validation."""
+        app.dependency_overrides[get_pipeline] = lambda: FakePipeline()
+        response = client.post("/api/v1/ask")
+        assert response.status_code == 422
