@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -26,11 +26,10 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global pipeline
     chunker = SimpleChunker(500, 50)
     embedding_model = SentenceTransformerEmbeddingModel()
     vectorstore = VectorStore()
-    pipeline = Pipeline(chunker, embedding_model, vectorstore)
+    app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore)
     yield
 
 
@@ -49,8 +48,12 @@ def _configure_cors():
 _configure_cors()
 
 
+def get_pipeline(request: Request) -> Pipeline:
+    return request.app.state.pipeline
+
+
 @app.post("/api/v1/query")
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)):
     if len(request.question) > MAX_QUERY_LENGTH:
         return JSONResponse(
             status_code=400,
@@ -66,7 +69,7 @@ async def query(request: QueryRequest):
 
 
 @app.post("/api/v1/reindex")
-async def reindex():
+async def reindex(pipeline: Pipeline = Depends(get_pipeline)):
     notes = load_notes("./data/notes", "./data/notes_sync.json")
     logger.info(f"{len(notes)} notes found.")
 
