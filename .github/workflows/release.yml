@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Source Tarball
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create source tarball
+        run: |
+          git archive --format=tar.gz \
+            --prefix=lexora-link-${{ steps.version.outputs.version }}/ \
+            HEAD \
+            -o lexora-link-${{ steps.version.outputs.version }}.tar.gz
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: lexora-link-${{ steps.version.outputs.version }}.tar.gz
