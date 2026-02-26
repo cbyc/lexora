@@ -120,7 +120,7 @@ export function init(container, apiBase) {
     addLoadingIndicator();
 
     try {
-      const resp = await fetch(`${apiBase}/api/v1/query`, {
+      const resp = await fetch(`${apiBase}/api/v1/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
@@ -132,7 +132,7 @@ export function init(container, apiBase) {
         const data = await resp.json();
         const assistantMsg = {
           role: "assistant",
-          text: data.answer,
+          text: data.text,
           sources: data.sources,
         };
         messages.push(assistantMsg);
