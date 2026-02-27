@@ -2,11 +2,11 @@
 
 import asyncio
 
-from src.loaders.models import Document
+from src.knowledge.loaders.models import Document
 from src.models import NOT_FOUND, AskResponse, Chunk
-from src.pipeline import Pipeline
+from src.knowledge.pipeline import Pipeline
 
-DIM = 384
+DIM = 768
 
 
 class FakeAskAgent:
@@ -35,7 +35,7 @@ class FakeEmbeddingModel:
     def __init__(self):
         self.calls: list[str] = []
 
-    def encode(self, text: str) -> list[float]:
+    async def encode(self, text: str) -> list[float]:
         self.calls.append(text)
         return [0.0] * DIM
 
@@ -70,11 +70,13 @@ class TestPipelineAddDocs:
         pipeline = Pipeline(
             chunker, FakeEmbeddingModel(), FakeDocumentStore(), FakeAskAgent()
         )
-        pipeline.add_docs(
-            [
-                Document(content="first", source="a.txt"),
-                Document(content="second", source="b.txt"),
-            ]
+        asyncio.run(
+            pipeline.add_docs(
+                [
+                    Document(content="first", source="a.txt"),
+                    Document(content="second", source="b.txt"),
+                ]
+            )
         )
         assert chunker.calls == ["first", "second"]
 
@@ -87,7 +89,7 @@ class TestPipelineAddDocs:
             FakeDocumentStore(),
             FakeAskAgent(),
         )
-        pipeline.add_docs([Document(content="text", source="a.txt")])
+        asyncio.run(pipeline.add_docs([Document(content="text", source="a.txt")]))
         assert embedder.calls == ["c1", "c2", "c3"]
 
     def test_add_chunks_called_once_per_doc(self):
@@ -96,11 +98,13 @@ class TestPipelineAddDocs:
         pipeline = Pipeline(
             FakeChunker(returns=["c1"]), FakeEmbeddingModel(), store, FakeAskAgent()
         )
-        pipeline.add_docs(
-            [
-                Document(content="first", source="a.txt"),
-                Document(content="second", source="b.txt"),
-            ]
+        asyncio.run(
+            pipeline.add_docs(
+                [
+                    Document(content="first", source="a.txt"),
+                    Document(content="second", source="b.txt"),
+                ]
+            )
         )
         assert len(store.added_batches) == 2
 
@@ -113,7 +117,7 @@ class TestPipelineAddDocs:
             store,
             FakeAskAgent(),
         )
-        pipeline.add_docs([Document(content="text", source="notes/a.txt")])
+        asyncio.run(pipeline.add_docs([Document(content="text", source="notes/a.txt")]))
         chunks, _ = store.added_batches[0]
         assert all(c.source == "notes/a.txt" for c in chunks)
 
@@ -126,7 +130,7 @@ class TestPipelineAddDocs:
             store,
             FakeAskAgent(),
         )
-        pipeline.add_docs([Document(content="text", source="a.txt")])
+        asyncio.run(pipeline.add_docs([Document(content="text", source="a.txt")]))
         chunks, _ = store.added_batches[0]
         assert [c.chunk_index for c in chunks] == [0, 1, 2]
 
@@ -139,7 +143,7 @@ class TestPipelineAddDocs:
             store,
             FakeAskAgent(),
         )
-        pipeline.add_docs([Document(content="text", source="a.txt")])
+        asyncio.run(pipeline.add_docs([Document(content="text", source="a.txt")]))
         chunks, embeddings = store.added_batches[0]
         assert len(chunks) == len(embeddings)
 
@@ -147,7 +151,7 @@ class TestPipelineAddDocs:
         """With an empty document list, add_chunks should never be called."""
         store = FakeDocumentStore()
         pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store, FakeAskAgent())
-        pipeline.add_docs([])
+        asyncio.run(pipeline.add_docs([]))
         assert store.added_batches == []
 
 
@@ -193,14 +197,14 @@ class TestPipelineSearch:
         pipeline = Pipeline(
             FakeChunker(), embedder, FakeDocumentStore(), FakeAskAgent()
         )
-        pipeline.search_document_store("what is python?")
+        asyncio.run(pipeline.search_document_store("what is python?"))
         assert embedder.calls == ["what is python?"]
 
     def test_passes_embedding_to_store(self):
         """The embedding returned by the model should be forwarded to the store."""
         store = FakeDocumentStore()
         pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store, FakeAskAgent())
-        pipeline.search_document_store("query")
+        asyncio.run(pipeline.search_document_store("query"))
         assert len(store.search_calls) == 1
         assert store.search_calls[0] == [0.0] * DIM
 
@@ -209,7 +213,7 @@ class TestPipelineSearch:
         expected = [Chunk(text="hello", source="a.txt", chunk_index=0)]
         store = FakeDocumentStore(search_result=expected)
         pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store, FakeAskAgent())
-        result = pipeline.search_document_store("query")
+        result = asyncio.run(pipeline.search_document_store("query"))
         assert result == expected
 
     def test_returns_empty_list_when_no_results(self):
@@ -217,12 +221,12 @@ class TestPipelineSearch:
         pipeline = Pipeline(
             FakeChunker(), FakeEmbeddingModel(), FakeDocumentStore(), FakeAskAgent()
         )
-        result = pipeline.search_document_store("query")
+        result = asyncio.run(pipeline.search_document_store("query"))
         assert result == []
 
     def test_search_does_not_call_ensure_collection(self):
         """Querying should have no write side-effects on the store."""
         store = FakeDocumentStore()
         pipeline = Pipeline(FakeChunker(), FakeEmbeddingModel(), store, FakeAskAgent())
-        pipeline.search_document_store("query")
+        asyncio.run(pipeline.search_document_store("query"))
         assert not store.ensured

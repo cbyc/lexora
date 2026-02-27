@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from src.loaders.notes import load_notes
-from src.loaders.models import Document
+from src.knowledge.loaders.notes import load_notes
+from src.knowledge.loaders.models import Document
 
 
 class TestLoadNotes:

@@ -3,18 +3,20 @@ from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, Request, Depends
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
-from src.ask_agent import PydanticAIAskAgent
+from src.app_state import AppState
 from src.config import Settings
-from src.vector_store import VectorStore
-from src.loaders.notes import load_notes
-from src.loaders.bookmarks import load_bookmarks
-from src.models import AskResponse, QueryRequest, ReindexResponse
-from src.chunker import SimpleChunker
-from src.pipeline import Pipeline
-from src.embedder import SentenceTransformerEmbeddingModel
+from src.feed.fetcher import HttpFeedFetcher
+from src.feed.service import FeedService
+from src.feed.store import YamlFeedStore
+from src.knowledge.ask_agent import PydanticAIAskAgent
+from src.knowledge.chunker import SimpleChunker
+from src.knowledge.embedder import GeminiEmbeddingModel
+from src.knowledge.pipeline import Pipeline
+from src.knowledge.vector_store import VectorStore
+from src.routers import feed, knowledge
 
 settings = Settings()
 
@@ -24,8 +26,17 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.google_api_key is None:
+        raise RuntimeError(
+            "GOOGLE_API_KEY is required but not set. "
+            "Set it in your environment or .env file."
+        )
+
     chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
-    embedding_model = SentenceTransformerEmbeddingModel(settings.embedding_model_name)
+    embedding_model = GeminiEmbeddingModel(
+        model_name=settings.gemini_embedding_model,
+        api_key=settings.google_api_key,
+    )
 
     if settings.chroma_path:
         vectorstore = VectorStore.from_path(
@@ -41,61 +52,36 @@ async def lifespan(app: FastAPI):
     vectorstore.ensure_collection()
 
     ask_agent = PydanticAIAskAgent(settings.llm_model)
-    app.state.pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
+    pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
+
+    feed_store = YamlFeedStore(settings.feed_data_file)
+    feed_store.ensure_data_file()
+    feed_fetcher = HttpFeedFetcher()
+    feed_service = FeedService(
+        store=feed_store,
+        fetcher=feed_fetcher,
+        default_range=settings.feed_default_range,
+        max_posts_per_feed=settings.feed_max_posts_per_feed,
+        timeout=float(settings.feed_fetch_timeout_sec),
+    )
+
+    app.state.app_state = AppState(pipeline=pipeline, feed_service=feed_service)
     app.state.settings = settings
+
+    logger.info(
+        "startup_complete",
+        embedding_model=settings.gemini_embedding_model,
+        llm_model=settings.llm_model,
+        feed_data_file=settings.feed_data_file,
+    )
     yield
 
 
-app = FastAPI(title="Lexora Mind API", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Lexora API", lifespan=lifespan)
 
-
-def get_pipeline(request: Request) -> Pipeline:
-    return request.app.state.pipeline
-
-
-def get_settings(request: Request) -> Settings:
-    return request.app.state.settings
-
-
-@app.post("/api/v1/query")
-async def query(request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)):
-    result = pipeline.search_document_store(request.question)
-    return result
-
-
-@app.post("/api/v1/ask")
-async def ask(
-    request: QueryRequest, pipeline: Pipeline = Depends(get_pipeline)
-) -> AskResponse:
-    return await pipeline.ask(request.question)
-
-
-@app.post("/api/v1/reindex")
-async def reindex(
-    pipeline: Pipeline = Depends(get_pipeline),
-    cfg: Settings = Depends(get_settings),
-):
-    notes = load_notes(cfg.notes_dir, cfg.notes_sync_state_path)
-    logger.info("notes_loaded", count=len(notes))
-
-    bookmarks = load_bookmarks(
-        cfg.bookmarks_profile_path,
-        cfg.bookmarks_sync_state_path,
-        cfg.bookmarks_fetch_timeout,
-        cfg.bookmarks_max_content_length,
-    )
-    logger.info("bookmarks_found", count=len(bookmarks))
-
-    docs = notes + bookmarks
-    pipeline.add_docs(docs)
-
-    return ReindexResponse(notes_indexed=len(notes), bookmarks_indexed=len(bookmarks))
+app.include_router(knowledge.router)
+app.include_router(feed.router)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
 if __name__ == "__main__":

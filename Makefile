@@ -1,9 +1,8 @@
 # LLM
 LLM_MODEL                    ?= google-gla:gemini-2.0-flash
 # Embeddings
-EMBEDDING_MODEL_NAME         ?= sentence-transformers/all-MiniLM-L6-v2
-EMBEDDING_DIMENSION          ?= 384
-HF_HUB_OFFLINE               ?= 1
+GEMINI_EMBEDDING_MODEL       ?= models/text-embedding-004
+EMBEDDING_DIMENSION          ?= 768
 # ChromaDB
 CHROMA_PATH                  ?= ./data/chroma
 CHROMA_COLLECTION            ?= lexora
@@ -16,14 +15,19 @@ NOTES_SYNC_STATE_PATH        ?= ./data/notes_sync.json
 BOOKMARKS_SYNC_STATE_PATH    ?= ./data/bm_sync.json
 BOOKMARKS_FETCH_TIMEOUT      ?= 15
 BOOKMARKS_MAX_CONTENT_LENGTH ?= 50000
+# Feed
+FEED_DATA_FILE               ?= ./data/feeds.yaml
+FEED_MAX_POSTS_PER_FEED      ?= 50
+FEED_FETCH_TIMEOUT_SEC       ?= 10
+FEED_DEFAULT_RANGE           ?= last_month
 # API
 HOST                         ?= 0.0.0.0
 PORT                         ?= 9002
 
-# Collected env flags used by both run targets
+# Collected env flags used by the run target
 ENVFLAGS = \
 	LLM_MODEL=$(LLM_MODEL) \
-	EMBEDDING_MODEL_NAME=$(EMBEDDING_MODEL_NAME) \
+	GEMINI_EMBEDDING_MODEL=$(GEMINI_EMBEDDING_MODEL) \
 	EMBEDDING_DIMENSION=$(EMBEDDING_DIMENSION) \
 	CHROMA_PATH="" \
 	CHROMA_COLLECTION=$(CHROMA_COLLECTION) \
@@ -34,27 +38,18 @@ ENVFLAGS = \
 	BOOKMARKS_SYNC_STATE_PATH=$(BOOKMARKS_SYNC_STATE_PATH) \
 	BOOKMARKS_FETCH_TIMEOUT=$(BOOKMARKS_FETCH_TIMEOUT) \
 	BOOKMARKS_MAX_CONTENT_LENGTH=$(BOOKMARKS_MAX_CONTENT_LENGTH) \
+	FEED_DATA_FILE=$(FEED_DATA_FILE) \
+	FEED_MAX_POSTS_PER_FEED=$(FEED_MAX_POSTS_PER_FEED) \
+	FEED_FETCH_TIMEOUT_SEC=$(FEED_FETCH_TIMEOUT_SEC) \
+	FEED_DEFAULT_RANGE=$(FEED_DEFAULT_RANGE) \
 	HOST=$(HOST) \
 	PORT=$(PORT)
 
-.PHONY: build run-image run test evals lint
-
-## Build a minimal Docker image for the API server
-build:
-	docker build -t lexora-link .
-
-## Run the API server via Docker (provider API key passed from environment)
-run-image:
-	docker run --rm -d \
-		-p $(PORT):80 \
-		-v $(PWD)/data:/app/data \
-		$(foreach v,$(ENVFLAGS),-e $(v)) \
-		-e GOOGLE_API_KEY=$(GOOGLE_API_KEY) \
-		lexora-link
+.PHONY: run test evals lint
 
 ## Run the API server on the local machine
 run:
-	$(ENVFLAGS) HF_HUB_OFFLINE=$(HF_HUB_OFFLINE) \
+	$(ENVFLAGS) \
 		GOOGLE_API_KEY=$(GOOGLE_API_KEY) \
 		uv run uvicorn api:app --host $(HOST) --port $(PORT)
 

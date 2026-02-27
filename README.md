@@ -1,6 +1,6 @@
 # Lexora-Link
 
-A personal knowledge retrieval API. Ingests documents from local notes and Firefox bookmarks, embeds them into a vector store, and exposes a semantic search endpoint and an LLM-powered question-answering endpoint.
+A personal knowledge and feed aggregation server. Ingests documents from local notes and Firefox bookmarks, embeds them into a vector store, and exposes semantic search, LLM-powered question answering, and an RSS feed reader — all served from a single process including a web frontend.
 
 ## Setup
 
@@ -12,7 +12,7 @@ uv sync
 
 ## Configuration
 
-All settings are read from environment variables or a `.env` file in the project root. Every setting has a default so the server starts with no configuration needed.
+All settings are read from environment variables or a `.env` file in the project root.
 
 ```bash
 # .env (all values shown are their defaults — only set what you want to change)
@@ -20,35 +20,44 @@ LOG_LEVEL=WARNING
 HOST=0.0.0.0
 PORT=9002
 
+# Embeddings — GOOGLE_API_KEY is required
+GOOGLE_API_KEY=                        # required
+GEMINI_EMBEDDING_MODEL=models/text-embedding-004
+EMBEDDING_DIMENSION=768
+
 # Vector store — omit CHROMA_PATH to use ephemeral in-memory mode
 CHROMA_PATH=./data/chroma
 CHROMA_COLLECTION=lexora
 
-# Paths
+# Knowledge sources
 NOTES_DIR=./data/notes
 NOTES_SYNC_STATE_PATH=./data/notes_sync.json
-BOOKMARKS_PROFILE_PATH=        # leave empty to auto-detect Firefox profile
+BOOKMARKS_PROFILE_PATH=               # leave empty to auto-detect Firefox profile
 BOOKMARKS_SYNC_STATE_PATH=./data/bm_sync.json
-
-# Tuning
-CHUNK_SIZE=500
-CHUNK_OVERLAP=50
 BOOKMARKS_FETCH_TIMEOUT=15
 BOOKMARKS_MAX_CONTENT_LENGTH=50000
 
+# Chunking
+CHUNK_SIZE=500
+CHUNK_OVERLAP=50
+
 # LLM — provider API key is read from the environment by pydantic-ai
 LLM_MODEL=google-gla:gemini-2.0-flash
-GEMINI_API_KEY=                # or OPENAI_API_KEY / ANTHROPIC_API_KEY
+
+# Feed reader
+FEED_DATA_FILE=./data/feeds.yaml
+FEED_MAX_POSTS_PER_FEED=50
+FEED_FETCH_TIMEOUT_SEC=10
+FEED_DEFAULT_RANGE=last_month
 ```
 
 ## Data sources
-
-Place your data in the following locations (or configure different paths via env vars):
 
 | Source | Default path |
 |---|---|
 | Plain-text notes | `data/notes/*.txt` |
 | Firefox profile | auto-detected, or set `BOOKMARKS_PROFILE_PATH` |
+| RSS/Atom feeds | managed via `PUT /api/v1/rss`; stored in `data/feeds.yaml` |
 
 Incremental sync state is persisted to `data/notes_sync.json` and `data/bm_sync.json`. Delete these files to force a full reindex.
 
@@ -58,11 +67,13 @@ Incremental sync state is persisted to `data/notes_sync.json` and `data/bm_sync.
 uv run python api.py
 ```
 
-The API starts on port `9002` by default.
+The server starts on port `9002` by default and serves the web frontend at `/`.
 
 ## API
 
-### `POST /api/v1/reindex`
+### Knowledge
+
+#### `POST /api/v1/reindex`
 
 Loads notes and bookmarks, chunks and embeds them, and upserts into the vector store.
 
@@ -74,7 +85,7 @@ curl -X POST http://localhost:9002/api/v1/reindex
 {"notes_indexed": 4, "bookmarks_indexed": 12}
 ```
 
-### `POST /api/v1/query`
+#### `POST /api/v1/query`
 
 Semantic search over indexed documents.
 
@@ -86,18 +97,15 @@ curl -X POST http://localhost:9002/api/v1/query \
 
 ```json
 [
-  {"text": "...", "source": "data/notes/recipe_sourdough.txt", "chunk_index": 0},
-  ...
+  {"text": "...", "source": "data/notes/recipe_sourdough.txt", "chunk_index": 0}
 ]
 ```
 
 `question` must be between 1 and 1024 characters. Returns up to 5 ranked chunks.
 
-### `POST /api/v1/ask`
+#### `POST /api/v1/ask`
 
-LLM-augmented question answering. Retrieves relevant chunks from the vector store, passes them to the configured LLM, and returns a grounded answer with source citations. The LLM answers strictly from the retrieved context — if the context does not contain a relevant answer, it returns the not-found response.
-
-Requires a provider API key (`GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`) and the `LLM_MODEL` env var to be set.
+LLM-augmented question answering. Retrieves relevant chunks, passes them to the configured LLM, and returns a grounded answer with source citations. The LLM answers strictly from the retrieved context — if the context does not contain a relevant answer, it returns a not-found response.
 
 ```bash
 curl -X POST http://localhost:9002/api/v1/ask \
@@ -120,7 +128,45 @@ If the context does not contain a relevant answer:
 
 `question` must be between 1 and 1024 characters.
 
-**Note:** `/query` and `/ask` use the same vector search under the hood. `/query` returns all retrieved chunks regardless of whether they answer the question. `/ask` asks the LLM whether the chunks actually answer the question — so it is possible to get results from `/query` and a not-found response from `/ask` when the retrieved chunks are topically related but do not contain a direct answer.
+### Feed Reader
+
+#### `GET /api/v1/rss`
+
+Fetches posts from all configured feeds.
+
+```bash
+curl http://localhost:9002/api/v1/rss?range=last_week
+```
+
+```json
+{
+  "posts": [
+    {
+      "feed_name": "Hacker News",
+      "title": "...",
+      "url": "https://...",
+      "published_at": "2026-02-20T10:00:00Z"
+    }
+  ],
+  "errors": []
+}
+```
+
+Query params:
+- `range` — preset: `today`, `last_week`, `last_month` (default), `last_3_months`, `last_6_months`, `last_year`, or omit for all time
+- `from` / `to` — explicit ISO 8601 date range (overrides `range`)
+
+#### `PUT /api/v1/rss`
+
+Add a new RSS or Atom feed.
+
+```bash
+curl -X PUT http://localhost:9002/api/v1/rss \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Hacker News", "url": "https://news.ycombinator.com/rss"}'
+```
+
+Returns `201` on success, `409` if the URL already exists, `400` if the URL is not a valid feed.
 
 ## Development
 
@@ -129,7 +175,7 @@ If the context does not contain a relevant answer:
 uv run pytest
 
 # Run LLM evals (requires a provider API key)
-LLM_MODEL=google-gla:gemini-2.0-flash GEMINI_API_KEY=... uv run pytest tests/evals/
+LLM_MODEL=google-gla:gemini-2.0-flash GOOGLE_API_KEY=... uv run pytest tests/evals/
 
 # Lint / format
 uv run ruff check .

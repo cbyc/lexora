@@ -1,7 +1,7 @@
 """Tests for ChromaDB vector store operations."""
 
 from src.models import Chunk
-from src.vector_store import VectorStore
+from src.knowledge.vector_store import VectorStore
 
 
 class TestVectorStore:
@@ -52,7 +52,7 @@ class TestVectorStore:
         """Searching an empty collection should return empty list."""
         store = VectorStore.in_memory()
         store.ensure_collection()
-        results = store.search([0.0] * 384, top_k=5)
+        results = store.search([0.0] * 768, top_k=5)
         assert results == []
 
     def test_delete_collection(

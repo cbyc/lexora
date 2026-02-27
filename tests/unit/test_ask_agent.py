@@ -3,7 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.ask_agent import PydanticAIAskAgent
+from src.knowledge.ask_agent import PydanticAIAskAgent
 from src.models import NOT_FOUND, AskResponse, Chunk
 
 
@@ -46,7 +46,7 @@ class TestContextFormatting:
 class TestAnswer:
     def _make_agent_with_mock(self, mock_output):
         """Helper: create PydanticAIAskAgent with a mocked pydantic-ai Agent."""
-        with patch("src.ask_agent.Agent") as MockAgent:
+        with patch("src.knowledge.ask_agent.Agent") as MockAgent:
             instance = MockAgent.return_value
             instance.run = AsyncMock(return_value=MagicMock(output=mock_output))
             agent = PydanticAIAskAgent("google-gla:gemini-2.0-flash")
@@ -64,7 +64,7 @@ class TestAnswer:
     def test_passes_question_and_context_to_run(self):
         """The formatted context and question must be forwarded to agent.run."""
         expected = AskResponse(text="The GIL is a lock.", sources=["notes/gil.txt"])
-        with patch("src.ask_agent.Agent") as MockAgent:
+        with patch("src.knowledge.ask_agent.Agent") as MockAgent:
             instance = MockAgent.return_value
             instance.run = AsyncMock(return_value=MagicMock(output=expected))
             agent = PydanticAIAskAgent("openai:gpt-4o")

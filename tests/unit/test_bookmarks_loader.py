@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.loaders.bookmarks import (
+from src.knowledge.loaders.bookmarks import (
     BookmarkRecord,
     _query_bookmarks,
     fetch_documents,
@@ -15,8 +15,8 @@ from src.loaders.bookmarks import (
     read_bookmarks,
     resolve_profile_path,
 )
-from src.loaders.models import Document
-from src.loaders.sync_state import load_sync_state, save_sync_state
+from src.knowledge.loaders.models import Document
+from src.knowledge.loaders.sync_state import load_sync_state, save_sync_state
 
 
 @pytest.fixture
@@ -170,8 +170,8 @@ class TestSyncState:
 class TestFetchPageContent:
     """Tests for fetch_page_content with mocked HTTP."""
 
-    @patch("src.loaders.bookmarks.trafilatura.fetch_url")
-    @patch("src.loaders.bookmarks.trafilatura.extract")
+    @patch("src.knowledge.loaders.bookmarks.trafilatura.fetch_url")
+    @patch("src.knowledge.loaders.bookmarks.trafilatura.extract")
     def test_successful_extraction(self, mock_extract, mock_fetch):
         """Should return extracted text on success."""
         mock_fetch.return_value = "<html><body>Hello world</body></html>"
@@ -179,15 +179,15 @@ class TestFetchPageContent:
         result = fetch_page_content("https://example.com")
         assert result == "Hello world"
 
-    @patch("src.loaders.bookmarks.trafilatura.fetch_url")
+    @patch("src.knowledge.loaders.bookmarks.trafilatura.fetch_url")
     def test_failed_download(self, mock_fetch):
         """Should return None on download failure."""
         mock_fetch.return_value = None
         result = fetch_page_content("https://example.com/broken")
         assert result is None
 
-    @patch("src.loaders.bookmarks.trafilatura.fetch_url")
-    @patch("src.loaders.bookmarks.trafilatura.extract")
+    @patch("src.knowledge.loaders.bookmarks.trafilatura.fetch_url")
+    @patch("src.knowledge.loaders.bookmarks.trafilatura.extract")
     def test_content_truncation(self, mock_extract, mock_fetch):
         """Should truncate content exceeding max_length."""
         mock_fetch.return_value = "<html><body>text</body></html>"
@@ -202,19 +202,27 @@ class TestResolveProfilePath:
 
     def test_none_triggers_auto_detect(self, tmp_path: Path):
         """None should delegate to find_firefox_profile."""
-        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=tmp_path):
+        with patch(
+            "src.knowledge.loaders.bookmarks.find_firefox_profile",
+            return_value=tmp_path,
+        ):
             result = resolve_profile_path(None)
         assert result == tmp_path
 
     def test_auto_string_triggers_auto_detect(self, tmp_path: Path):
         """'auto' should behave identically to None."""
-        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=tmp_path):
+        with patch(
+            "src.knowledge.loaders.bookmarks.find_firefox_profile",
+            return_value=tmp_path,
+        ):
             result = resolve_profile_path("auto")
         assert result == tmp_path
 
     def test_returns_none_when_no_profile_found(self):
         """Should return None when auto-detection finds no profile."""
-        with patch("src.loaders.bookmarks.find_firefox_profile", return_value=None):
+        with patch(
+            "src.knowledge.loaders.bookmarks.find_firefox_profile", return_value=None
+        ):
             result = resolve_profile_path(None)
         assert result is None
 
@@ -295,7 +303,7 @@ class TestFetchDocuments:
         result = fetch_documents([], timeout=15, max_length=50000)
         assert result == []
 
-    @patch("src.loaders.bookmarks.fetch_page_content")
+    @patch("src.knowledge.loaders.bookmarks.fetch_page_content")
     def test_successful_fetch_produces_document(self, mock_fetch):
         """A bookmark whose content is fetched should produce one Document."""
         mock_fetch.return_value = "page content"
@@ -306,7 +314,7 @@ class TestFetchDocuments:
         assert result[0].content == "page content"
         assert result[0].source == "https://example.com"
 
-    @patch("src.loaders.bookmarks.fetch_page_content")
+    @patch("src.knowledge.loaders.bookmarks.fetch_page_content")
     def test_failed_fetch_is_skipped(self, mock_fetch):
         """A bookmark whose content cannot be fetched should be omitted."""
         mock_fetch.return_value = None
@@ -314,7 +322,7 @@ class TestFetchDocuments:
         result = fetch_documents(bookmarks, timeout=15, max_length=50000)
         assert result == []
 
-    @patch("src.loaders.bookmarks.fetch_page_content")
+    @patch("src.knowledge.loaders.bookmarks.fetch_page_content")
     def test_partial_failures_return_successful_only(self, mock_fetch):
         """Only bookmarks with successful fetches should appear in the result."""
         mock_fetch.side_effect = ["content for a", None, "content for c"]
@@ -328,7 +336,7 @@ class TestFetchDocuments:
         assert result[0].source == "https://a.com"
         assert result[1].source == "https://c.com"
 
-    @patch("src.loaders.bookmarks.fetch_page_content")
+    @patch("src.knowledge.loaders.bookmarks.fetch_page_content")
     def test_passes_timeout_and_max_length_to_fetch(self, mock_fetch):
         """timeout and max_length should be forwarded to fetch_page_content."""
         mock_fetch.return_value = "content"

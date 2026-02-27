@@ -30,3 +30,13 @@ class AskResponse(BaseModel):
         if not self.sources and self.text != NOT_FOUND:
             raise ValueError("sources must not be empty when an answer is provided")
         return self
+
+
+class AddFeedRequest(BaseModel):
+    name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+
+
+class AddFeedResponse(BaseModel):
+    message: str
+    feed: dict

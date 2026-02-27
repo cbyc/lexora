@@ -39,8 +39,8 @@ def sample_chunks() -> list[Chunk]:
 
 @pytest.fixture
 def sample_embeddings() -> list[list[float]]:
-    """Fake embeddings for testing (384-dimensional vectors with distinct elements)."""
-    dim = 384
+    """Fake embeddings for testing (768-dimensional vectors with distinct elements)."""
+    dim = 768
     return [
         [1.0] + [0.0] * (dim - 1),
         [0.0, 1.0] + [0.0] * (dim - 2),

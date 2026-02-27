@@ -1,6 +1,6 @@
 """Tests for SimpleChunker."""
 
-from src.chunker import SimpleChunker
+from src.knowledge.chunker import SimpleChunker
 
 
 class TestSimpleChunker:
