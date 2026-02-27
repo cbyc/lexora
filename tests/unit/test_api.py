@@ -1,7 +1,7 @@
 """Tests for the FastAPI endpoints."""
 
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -331,6 +331,78 @@ class TestGetRSSEndpoint:
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.headers.get("x-feed-errors") is None
+
+
+class TestLifespan:
+    def test_startup_raises_when_google_api_key_missing(self):
+        """Lifespan raises RuntimeError immediately when GOOGLE_API_KEY is absent."""
+        fake_settings = MagicMock()
+        fake_settings.google_api_key = None
+        with patch("api.settings", fake_settings):
+            with pytest.raises(RuntimeError, match="GOOGLE_API_KEY"):
+                with TestClient(app):
+                    pass
+
+    def test_startup_uses_in_memory_vector_store_when_chroma_path_not_set(self):
+        """VectorStore.in_memory is called when settings.chroma_path is falsy."""
+        fake_settings = MagicMock()
+        fake_settings.chroma_path = None
+        with (
+            patch("api.settings", fake_settings),
+            patch("api.GeminiEmbeddingModel"),
+            patch("api.VectorStore") as mock_vs,
+            patch("api.PydanticAIAskAgent"),
+            patch("api.Pipeline"),
+            patch("api.YamlFeedStore"),
+            patch("api.HttpFeedFetcher"),
+            patch("api.FeedService"),
+        ):
+            with TestClient(app):
+                pass
+        mock_vs.in_memory.assert_called_once()
+        mock_vs.from_path.assert_not_called()
+
+    def test_startup_uses_persistent_vector_store_when_chroma_path_set(self):
+        """VectorStore.from_path is called with the configured path, collection, and dimension."""
+        fake_settings = MagicMock()
+        fake_settings.chroma_path = "/data/chroma"
+        with (
+            patch("api.settings", fake_settings),
+            patch("api.GeminiEmbeddingModel"),
+            patch("api.VectorStore") as mock_vs,
+            patch("api.PydanticAIAskAgent"),
+            patch("api.Pipeline"),
+            patch("api.YamlFeedStore"),
+            patch("api.HttpFeedFetcher"),
+            patch("api.FeedService"),
+        ):
+            with TestClient(app):
+                pass
+        mock_vs.from_path.assert_called_once_with(
+            "/data/chroma",
+            fake_settings.chroma_collection,
+            fake_settings.embedding_dimension,
+        )
+        mock_vs.in_memory.assert_not_called()
+
+    def test_startup_wires_pipeline_and_feed_service_into_app_state(self):
+        """Lifespan stores the constructed pipeline and feed_service on app.state."""
+        fake_pipeline = MagicMock()
+        fake_feed_service = MagicMock()
+        with (
+            patch("api.settings", MagicMock()),
+            patch("api.GeminiEmbeddingModel"),
+            patch("api.VectorStore"),
+            patch("api.PydanticAIAskAgent"),
+            patch("api.Pipeline", return_value=fake_pipeline),
+            patch("api.YamlFeedStore"),
+            patch("api.HttpFeedFetcher"),
+            patch("api.FeedService", return_value=fake_feed_service),
+        ):
+            with TestClient(app):
+                state = app.state.app_state
+        assert state.pipeline is fake_pipeline
+        assert state.feed_service is fake_feed_service
 
 
 class TestStaticFiles:
