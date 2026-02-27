@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -31,6 +32,10 @@ async def lifespan(app: FastAPI):
         logger.warning("mind_disabled", reason="GOOGLE_API_KEY not set")
         pipeline = None
     else:
+        # pydantic-settings reads .env into settings but does not inject values
+        # back into os.environ; pydantic-ai's GoogleProvider reads os.environ
+        # directly, so we bridge the gap here.
+        os.environ.setdefault("GOOGLE_API_KEY", settings.google_api_key)
         chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
         embedding_model = GeminiEmbeddingModel(
             model_name=settings.gemini_embedding_model,

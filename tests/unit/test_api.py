@@ -1,5 +1,6 @@
 """Tests for the FastAPI endpoints."""
 
+import os
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -355,6 +356,7 @@ class TestLifespan:
     def test_startup_uses_in_memory_vector_store_when_chroma_path_not_set(self):
         """VectorStore.in_memory is called when settings.chroma_path is falsy."""
         fake_settings = MagicMock()
+        fake_settings.google_api_key = "test-key"
         fake_settings.chroma_path = None
         with (
             patch("api.settings", fake_settings),
@@ -374,6 +376,7 @@ class TestLifespan:
     def test_startup_uses_persistent_vector_store_when_chroma_path_set(self):
         """VectorStore.from_path is called with the configured path, collection, and dimension."""
         fake_settings = MagicMock()
+        fake_settings.google_api_key = "test-key"
         fake_settings.chroma_path = "/data/chroma"
         with (
             patch("api.settings", fake_settings),
@@ -398,8 +401,10 @@ class TestLifespan:
         """Lifespan stores the constructed pipeline and feed_service on app.state."""
         fake_pipeline = MagicMock()
         fake_feed_service = MagicMock()
+        fake_settings = MagicMock()
+        fake_settings.google_api_key = "test-key"
         with (
-            patch("api.settings", MagicMock()),
+            patch("api.settings", fake_settings),
             patch("api.GeminiEmbeddingModel"),
             patch("api.VectorStore"),
             patch("api.PydanticAIAskAgent"),
@@ -412,6 +417,27 @@ class TestLifespan:
                 state = app.state.app_state
         assert state.pipeline is fake_pipeline
         assert state.feed_service is fake_feed_service
+
+    def test_startup_propagates_api_key_from_settings_to_os_environ(self):
+        """GOOGLE_API_KEY read from .env is exported to os.environ for pydantic-ai."""
+        fake_settings = MagicMock()
+        fake_settings.google_api_key = "key-from-dotenv"
+        fake_settings.chroma_path = None
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GOOGLE_API_KEY", None)
+            with (
+                patch("api.settings", fake_settings),
+                patch("api.GeminiEmbeddingModel"),
+                patch("api.VectorStore"),
+                patch("api.PydanticAIAskAgent"),
+                patch("api.Pipeline"),
+                patch("api.YamlFeedStore"),
+                patch("api.HttpFeedFetcher"),
+                patch("api.FeedService"),
+            ):
+                with TestClient(app):
+                    pass
+            assert os.environ.get("GOOGLE_API_KEY") == "key-from-dotenv"
 
 
 class TestKnowledgeEndpointsWhenPipelineDisabled:
