@@ -4,7 +4,12 @@
       "Bash(uv:*)",
       "Bash(git:*)",
       "WebSearch",
-      "WebFetch(domain:ai.pydantic.dev)"
+      "WebFetch(domain:ai.pydantic.dev)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(test:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)"
     ]
   }
 }
