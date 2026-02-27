@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 import uvicorn
@@ -81,7 +82,7 @@ app = FastAPI(title="Lexora API", lifespan=lifespan)
 
 app.include_router(knowledge.router)
 app.include_router(feed.router)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")
 
 
 if __name__ == "__main__":
