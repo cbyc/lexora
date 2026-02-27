@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 50
 
     # Embedding model
-    gemini_embedding_model: str = "models/text-embedding-004"
+    gemini_embedding_model: str = "gemini-embedding-001"
     google_api_key: str | None = None
 
     # Notes loader
