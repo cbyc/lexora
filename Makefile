@@ -4,9 +4,9 @@ LLM_MODEL                    ?= google-gla:gemini-2.0-flash
 EMBEDDING_MODEL_NAME         ?= sentence-transformers/all-MiniLM-L6-v2
 EMBEDDING_DIMENSION          ?= 384
 HF_HUB_OFFLINE               ?= 1
-# Qdrant
-QDRANT_URL                   ?= http://localhost:6333
-QDRANT_COLLECTION            ?= lexora
+# ChromaDB
+CHROMA_PATH                  ?= ./data/chroma
+CHROMA_COLLECTION            ?= lexora
 # Chunking
 CHUNK_SIZE                   ?= 500
 CHUNK_OVERLAP                ?= 50
@@ -25,8 +25,8 @@ ENVFLAGS = \
 	LLM_MODEL=$(LLM_MODEL) \
 	EMBEDDING_MODEL_NAME=$(EMBEDDING_MODEL_NAME) \
 	EMBEDDING_DIMENSION=$(EMBEDDING_DIMENSION) \
-	QDRANT_URL="" \
-	QDRANT_COLLECTION=$(QDRANT_COLLECTION) \
+	CHROMA_PATH="" \
+	CHROMA_COLLECTION=$(CHROMA_COLLECTION) \
 	CHUNK_SIZE=$(CHUNK_SIZE) \
 	CHUNK_OVERLAP=$(CHUNK_OVERLAP) \
 	NOTES_DIR=$(NOTES_DIR) \

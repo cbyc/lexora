@@ -27,15 +27,15 @@ async def lifespan(app: FastAPI):
     chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
     embedding_model = SentenceTransformerEmbeddingModel(settings.embedding_model_name)
 
-    if settings.qdrant_url:
-        vectorstore = VectorStore.from_url(
-            settings.qdrant_url,
-            settings.qdrant_collection,
+    if settings.chroma_path:
+        vectorstore = VectorStore.from_path(
+            settings.chroma_path,
+            settings.chroma_collection,
             settings.embedding_dimension,
         )
     else:
         vectorstore = VectorStore.in_memory(
-            settings.qdrant_collection,
+            settings.chroma_collection,
             settings.embedding_dimension,
         )
     vectorstore.ensure_collection()

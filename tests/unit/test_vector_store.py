@@ -1,4 +1,4 @@
-"""Tests for Qdrant vector store operations."""
+"""Tests for ChromaDB vector store operations."""
 
 from src.models import Chunk
 from src.vector_store import VectorStore

@@ -20,9 +20,9 @@ LOG_LEVEL=WARNING
 HOST=0.0.0.0
 PORT=9002
 
-# Vector store — omit QDRANT_URL to use ephemeral in-memory mode
-QDRANT_URL=http://localhost:6333
-QDRANT_COLLECTION=lexora
+# Vector store — omit CHROMA_PATH to use ephemeral in-memory mode
+CHROMA_PATH=./data/chroma
+CHROMA_COLLECTION=lexora
 
 # Paths
 NOTES_DIR=./data/notes
@@ -136,4 +136,4 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-The vector store runs in-memory by default — data is lost on restart. Call `/api/v1/reindex` each time the server starts, or set `QDRANT_URL` to persist to a running Qdrant server.
+The vector store runs in-memory by default — data is lost on restart. Call `/api/v1/reindex` each time the server starts, or set `CHROMA_PATH` to a directory for persistent local storage.

@@ -54,9 +54,9 @@ All application logic depends only on these protocols. Concrete implementations 
 
 4. **Pipeline** (`src/pipeline.py`): Application-layer orchestrator. Accepts the four ports via constructor injection and owns the chunk → embed → store flow for indexing, the encode → search flow for querying, and the search → LLM flow for question answering. This is the only class that coordinates across all ports.
 
-5. **Vector Store** (`src/vector_store.py`): `VectorStore` implements `DocumentStore`. Wraps Qdrant. Point IDs are deterministic `uuid5` hashes of `source:chunk_index:text`, enabling idempotent upserts. Cosine distance. Use the factory classmethods rather than the constructor directly:
+5. **Vector Store** (`src/vector_store.py`): `VectorStore` implements `DocumentStore`. Wraps ChromaDB. Point IDs are deterministic `uuid5` hashes of `source:chunk_index:text`, enabling idempotent upserts. Cosine distance. Use the factory classmethods rather than the constructor directly:
    - `VectorStore.in_memory()` — ephemeral, for development and tests
-   - `VectorStore.from_url(url)` — connects to a remote Qdrant server
+   - `VectorStore.from_path(path)` — persistent local storage (no server required)
 
 6. **Ask Agent** (`src/ask_agent.py`): `PydanticAIAskAgent` implements `AskAgent`. Uses pydantic-ai to run an LLM with structured output (`AskResponse`). Formats retrieved chunks as `SOURCE: <path>\n<text>` blocks and instructs the LLM to answer strictly from the provided context. Provider and model are selected via the `LLM_MODEL` env var; API keys are read from the environment by pydantic-ai automatically.
 
@@ -89,8 +89,8 @@ All application logic depends only on these protocols. Concrete implementations 
 | `HOST` | `0.0.0.0` | Server bind address |
 | `PORT` | `9002` | Server port |
 | `LOG_LEVEL` | `WARNING` | Log verbosity |
-| `QDRANT_URL` | _(none)_ | Qdrant server URL; omit to use in-memory mode |
-| `QDRANT_COLLECTION` | `lexora` | Qdrant collection name |
+| `CHROMA_PATH` | _(none)_ | ChromaDB persistence directory; omit to use in-memory mode |
+| `CHROMA_COLLECTION` | `lexora` | ChromaDB collection name |
 | `EMBEDDING_DIMENSION` | `384` | Embedding vector size |
 | `CHUNK_SIZE` | `500` | Characters per chunk |
 | `CHUNK_OVERLAP` | `50` | Overlap between chunks |

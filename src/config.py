@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     port: int = 9002
     log_level: str = "WARNING"
 
-    # Vector store — qdrant_url=None uses in-memory mode
-    qdrant_url: str | None = None
-    qdrant_collection: str = "lexora"
+    # Vector store — chroma_path=None uses in-memory mode
+    chroma_path: str | None = None
+    chroma_collection: str = "lexora"
     embedding_dimension: int = 384
 
     # Chunker
