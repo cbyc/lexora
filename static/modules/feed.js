@@ -28,15 +28,45 @@ export function init(container, apiBase) {
           <option value="">All Feeds</option>
         </select>
       </div>
+      <button id="add-feed-btn" class="feed-add-btn">+ Add Feed</button>
+    </div>
+    <div id="feed-add-panel" class="feed-add-panel">
+      <form id="feed-add-form" class="feed-add-form" novalidate>
+        <div class="feed-add-form-row">
+          <div class="feed-add-form-field">
+            <label for="feed-name-input" class="feed-add-form-label">Name</label>
+            <input id="feed-name-input" type="text" class="feed-add-form-input"
+              placeholder="e.g. Hacker News" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="feed-add-form-field">
+            <label for="feed-url-input" class="feed-add-form-label">URL</label>
+            <input id="feed-url-input" type="url" class="feed-add-form-input"
+              placeholder="https://example.com/feed.xml" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <div class="feed-add-form-actions">
+          <span id="feed-add-feedback" class="feed-add-feedback"></span>
+          <button type="button" id="feed-cancel-btn" class="feed-add-cancel-btn">Cancel</button>
+          <button type="submit" id="feed-submit-btn" class="feed-add-submit-btn">Add Feed</button>
+        </div>
+      </form>
     </div>
     <div id="feed-warnings"></div>
     <div id="post-list"></div>
   `;
 
-  const rangeSelect = container.querySelector("#range-select");
-  const feedSelect = container.querySelector("#feed-select");
-  const postList = container.querySelector("#post-list");
-  const warnings = container.querySelector("#feed-warnings");
+  const rangeSelect   = container.querySelector("#range-select");
+  const feedSelect    = container.querySelector("#feed-select");
+  const postList      = container.querySelector("#post-list");
+  const warnings      = container.querySelector("#feed-warnings");
+  const addBtn        = container.querySelector("#add-feed-btn");
+  const addPanel      = container.querySelector("#feed-add-panel");
+  const addForm       = container.querySelector("#feed-add-form");
+  const addNameInput  = container.querySelector("#feed-name-input");
+  const addUrlInput   = container.querySelector("#feed-url-input");
+  const addSubmitBtn  = container.querySelector("#feed-submit-btn");
+  const addCancelBtn  = container.querySelector("#feed-cancel-btn");
+  const addFeedback   = container.querySelector("#feed-add-feedback");
 
   function updateFeedDropdown(posts) {
     const current = feedSelect.value;
@@ -93,6 +123,70 @@ export function init(container, apiBase) {
     }
   }
 
+  function openAddPanel() {
+    addPanel.classList.add("open");
+    addBtn.classList.add("is-open");
+    addBtn.textContent = "− Close";
+    addNameInput.focus();
+  }
+
+  function closeAddPanel() {
+    addPanel.classList.remove("open");
+    addBtn.classList.remove("is-open");
+    addBtn.textContent = "+ Add Feed";
+    addForm.reset();
+    addFeedback.textContent = "";
+    addFeedback.className = "feed-add-feedback";
+  }
+
+  addBtn.addEventListener("click", () => {
+    addPanel.classList.contains("open") ? closeAddPanel() : openAddPanel();
+  });
+
+  addCancelBtn.addEventListener("click", closeAddPanel);
+
+  addForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = addNameInput.value.trim();
+    const url = addUrlInput.value.trim();
+
+    if (!name || !url) {
+      addFeedback.textContent = "Name and URL are required.";
+      addFeedback.className = "feed-add-feedback error";
+      return;
+    }
+
+    addSubmitBtn.disabled = true;
+    addFeedback.textContent = "Adding\u2026";
+    addFeedback.className = "feed-add-feedback";
+
+    try {
+      const resp = await fetch(`${apiBase}/api/v1/rss`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url }),
+      });
+
+      if (resp.ok) {
+        addFeedback.textContent = `\u201c${escapeHtml(name)}\u201d added successfully.`;
+        addFeedback.className = "feed-add-feedback success";
+        setTimeout(() => {
+          closeAddPanel();
+          fetchPosts();
+        }, 1400);
+      } else {
+        const body = await resp.json().catch(() => ({}));
+        addFeedback.textContent = body.detail || `Error ${resp.status}`;
+        addFeedback.className = "feed-add-feedback error";
+      }
+    } catch (err) {
+      addFeedback.textContent = `Network error: ${err.message}`;
+      addFeedback.className = "feed-add-feedback error";
+    } finally {
+      addSubmitBtn.disabled = false;
+    }
+  });
+
   rangeSelect.addEventListener("change", fetchPosts);
   feedSelect.addEventListener("change", applyFeedFilter);
   fetchPosts();
@@ -103,10 +197,7 @@ function renderPosts(posts, container) {
     container.innerHTML = `
       <div class="feed-empty">
         <p class="feed-empty-title">No posts in this range.</p>
-        <p class="feed-empty-body">Try a wider date range, or add a feed via the API:</p>
-        <code class="feed-empty-code">curl -X PUT http://localhost:9002/api/v1/rss \\
-  -H "Content-Type: application/json" \\
-  -d '{"name": "Example", "url": "https://example.com/rss"}'</code>
+        <p class="feed-empty-body">Try a wider date range, or add a feed using the <strong>+ Add Feed</strong> button above.</p>
       </div>
     `;
     return;

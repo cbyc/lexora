@@ -1,43 +1,87 @@
 export async function init(container, _apiBase) {
   container.innerHTML = `
-    <div class="settings-form">
-      <div class="settings-field">
-        <label class="settings-label" for="settings-api-key">Google API Key</label>
-        <input id="settings-api-key" type="password" class="settings-input"
-               placeholder="Enter new key to update" autocomplete="off">
-        <span id="settings-key-hint" class="settings-hint"></span>
-      </div>
+    <div class="settings-page">
 
-      <div class="settings-field">
-        <label class="settings-label" for="settings-notes-dir">Notes Directory</label>
-        <div class="settings-input-row">
-          <input id="settings-notes-dir" type="text" class="settings-input">
-          <button class="settings-browse-btn" data-target="settings-notes-dir">Browse\u2026</button>
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <h2 class="settings-section-title">API Credentials</h2>
+          <p class="settings-section-desc">External service keys</p>
         </div>
-      </div>
-
-      <div class="settings-field">
-        <label class="settings-label" for="settings-bookmarks-dir">Firefox Profile Directory</label>
-        <div class="settings-input-row">
-          <input id="settings-bookmarks-dir" type="text" class="settings-input"
-                 placeholder="Leave blank to auto-detect">
-          <button class="settings-browse-btn" data-target="settings-bookmarks-dir">Browse\u2026</button>
+        <div class="settings-section-body">
+          <div class="settings-field">
+            <div class="settings-label-row">
+              <label class="settings-label" for="settings-api-key">Google API Key</label>
+              <span id="settings-key-badge" class="settings-badge"></span>
+            </div>
+            <input id="settings-api-key" type="password" class="settings-input"
+                   placeholder="Enter new key to update" autocomplete="off">
+            <span class="settings-hint">Used for Gemini embeddings and knowledge base search</span>
+          </div>
         </div>
+      </section>
+
+      <div class="settings-divider"></div>
+
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <h2 class="settings-section-title">Knowledge Base</h2>
+          <p class="settings-section-desc">Document source directories</p>
+        </div>
+        <div class="settings-section-body">
+          <div class="settings-field">
+            <div class="settings-label-row">
+              <label class="settings-label" for="settings-notes-dir">Notes Directory</label>
+            </div>
+            <div class="settings-input-row">
+              <input id="settings-notes-dir" type="text" class="settings-input">
+              <button class="settings-browse-btn" data-target="settings-notes-dir">Browse&hellip;</button>
+            </div>
+            <span class="settings-hint">Directory containing .txt note files</span>
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-label-row">
+              <label class="settings-label" for="settings-bookmarks-dir">Firefox Profile Directory</label>
+            </div>
+            <div class="settings-input-row">
+              <input id="settings-bookmarks-dir" type="text" class="settings-input"
+                     placeholder="Leave blank to auto-detect">
+              <button class="settings-browse-btn" data-target="settings-bookmarks-dir">Browse&hellip;</button>
+            </div>
+            <span class="settings-hint">Path to Firefox profile for bookmark sync</span>
+          </div>
+        </div>
+      </section>
+
+      <div id="settings-banner" class="settings-banner" style="display:none"></div>
+      <p id="settings-error" class="settings-error-msg" style="display:none"></p>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-actions">
+        <button id="settings-save-btn" class="settings-save-btn">Save Settings</button>
       </div>
 
-      <div id="settings-banner" class="feed-warning" style="display:none"></div>
-      <p id="settings-error" class="error-text" style="display:none"></p>
-      <button id="settings-save-btn" class="settings-save-btn">Save Settings</button>
     </div>
   `;
 
   const apiKeyInput = container.querySelector("#settings-api-key");
   const notesDirInput = container.querySelector("#settings-notes-dir");
   const bookmarksDirInput = container.querySelector("#settings-bookmarks-dir");
-  const keyHint = container.querySelector("#settings-key-hint");
+  const keyBadge = container.querySelector("#settings-key-badge");
   const banner = container.querySelector("#settings-banner");
   const errorEl = container.querySelector("#settings-error");
   const saveBtn = container.querySelector("#settings-save-btn");
+
+  function setKeyBadge(isSet) {
+    if (isSet) {
+      keyBadge.textContent = "Set";
+      keyBadge.className = "settings-badge settings-badge-set";
+    } else {
+      keyBadge.textContent = "Not configured";
+      keyBadge.className = "settings-badge settings-badge-unset";
+    }
+  }
 
   // ── Load current settings ────────────────────────────────────────
   try {
@@ -45,13 +89,7 @@ export async function init(container, _apiBase) {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    if (data.google_api_key_set) {
-      keyHint.textContent = "Currently set";
-      keyHint.className = "settings-hint settings-hint-set";
-    } else {
-      keyHint.textContent = "Not configured";
-      keyHint.className = "settings-hint settings-hint-unset";
-    }
+    setKeyBadge(data.google_api_key_set);
     notesDirInput.value = data.notes_dir ?? "";
     bookmarksDirInput.value = data.bookmarks_profile_path ?? "";
   } catch (err) {
@@ -101,8 +139,7 @@ export async function init(container, _apiBase) {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       apiKeyInput.value = "";
       if (body.google_api_key) {
-        keyHint.textContent = "Currently set";
-        keyHint.className = "settings-hint settings-hint-set";
+        setKeyBadge(true);
       }
       banner.textContent = "Settings saved. Restart the server for changes to take effect.";
       banner.style.display = "";
