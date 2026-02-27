@@ -16,6 +16,8 @@ from models import NOT_FOUND, AskResponse, Chunk
 from routers.feed import get_app_state as feed_get_app_state
 from routers.knowledge import get_app_state as knowledge_get_app_state
 from routers.knowledge import get_settings
+from routers.settings import get_env_file
+from routers.settings import get_settings as settings_get_settings
 
 
 class FakePipeline:
@@ -518,3 +520,129 @@ class TestPutRSSEndpoint:
             json={"name": "Bad", "url": "https://bad.example.com/rss"},
         )
         assert response.status_code == 400
+
+
+@pytest.fixture
+def settings_env_file(tmp_path):
+    env_path = tmp_path / ".env"
+    app.dependency_overrides[get_env_file] = lambda: env_path
+    yield env_path
+
+
+class TestSettingsEndpoints:
+    @pytest.fixture(autouse=True)
+    def override_settings(self):
+        fake = Settings(
+            google_api_key="secret",
+            notes_dir="./data/notes",
+            bookmarks_profile_path="/ff/profile",
+        )
+        app.dependency_overrides[settings_get_settings] = lambda: fake
+        yield
+
+    # ── GET /api/v1/settings ─────────────────────────────────────────
+
+    def test_get_returns_200(self, client):
+        """GET /api/v1/settings returns HTTP 200."""
+        response = client.get("/api/v1/settings")
+        assert response.status_code == 200
+
+    def test_get_returns_key_set_true_when_key_present(self, client):
+        """google_api_key_set is true when an API key is configured."""
+        body = client.get("/api/v1/settings").json()
+        assert body["google_api_key_set"] is True
+
+    def test_get_returns_key_set_false_when_key_absent(self, client):
+        """google_api_key_set is false when no API key is configured."""
+        app.dependency_overrides[settings_get_settings] = lambda: Settings(
+            google_api_key=None, notes_dir="./data/notes"
+        )
+        body = client.get("/api/v1/settings").json()
+        assert body["google_api_key_set"] is False
+
+    def test_get_does_not_return_raw_api_key(self, client):
+        """Response must never expose the raw API key value."""
+        body = client.get("/api/v1/settings").json()
+        assert "google_api_key" not in body
+        assert "secret" not in str(body)
+
+    def test_get_returns_notes_dir(self, client):
+        """notes_dir is returned in the response."""
+        body = client.get("/api/v1/settings").json()
+        assert body["notes_dir"] == "./data/notes"
+
+    def test_get_returns_bookmarks_profile_path(self, client):
+        """bookmarks_profile_path is returned when configured."""
+        body = client.get("/api/v1/settings").json()
+        assert body["bookmarks_profile_path"] == "/ff/profile"
+
+    def test_get_returns_null_bookmarks_when_not_configured(self, client):
+        """bookmarks_profile_path is null when not configured."""
+        app.dependency_overrides[settings_get_settings] = lambda: Settings(
+            google_api_key=None, notes_dir="./data/notes", bookmarks_profile_path=None
+        )
+        body = client.get("/api/v1/settings").json()
+        assert body["bookmarks_profile_path"] is None
+
+    # ── PUT /api/v1/settings ─────────────────────────────────────────
+
+    def test_put_returns_200(self, client, settings_env_file):
+        """PUT /api/v1/settings returns HTTP 200."""
+        response = client.put("/api/v1/settings", json={"google_api_key": "new-key"})
+        assert response.status_code == 200
+
+    def test_put_returns_saved_and_restart_required(self, client, settings_env_file):
+        """Response body contains saved=true and restart_required=true."""
+        body = client.put("/api/v1/settings", json={"google_api_key": "k"}).json()
+        assert body["saved"] is True
+        assert body["restart_required"] is True
+
+    def test_put_writes_google_api_key_to_env_file(self, client, settings_env_file):
+        """PUT writes GOOGLE_API_KEY to the .env file."""
+        client.put("/api/v1/settings", json={"google_api_key": "my-key"})
+        assert 'GOOGLE_API_KEY="my-key"' in settings_env_file.read_text()
+
+    def test_put_writes_notes_dir_to_env_file(self, client, settings_env_file):
+        """PUT writes NOTES_DIR to the .env file."""
+        client.put("/api/v1/settings", json={"notes_dir": "/my/notes"})
+        assert 'NOTES_DIR="/my/notes"' in settings_env_file.read_text()
+
+    def test_put_writes_bookmarks_profile_path(self, client, settings_env_file):
+        """PUT writes BOOKMARKS_PROFILE_PATH to the .env file."""
+        client.put("/api/v1/settings", json={"bookmarks_profile_path": "/ff/profile"})
+        assert 'BOOKMARKS_PROFILE_PATH="/ff/profile"' in settings_env_file.read_text()
+
+    def test_put_skips_empty_google_api_key(self, client, settings_env_file):
+        """PUT with empty google_api_key does not write GOOGLE_API_KEY."""
+        client.put("/api/v1/settings", json={"notes_dir": "/some/dir"})
+        assert "GOOGLE_API_KEY" not in settings_env_file.read_text()
+
+    def test_put_skips_empty_notes_dir(self, client, settings_env_file):
+        """PUT with empty notes_dir does not write NOTES_DIR."""
+        client.put("/api/v1/settings", json={"google_api_key": "k"})
+        assert "NOTES_DIR" not in settings_env_file.read_text()
+
+    def test_put_skips_empty_bookmarks_profile_path(self, client, settings_env_file):
+        """PUT with empty bookmarks_profile_path does not write BOOKMARKS_PROFILE_PATH."""
+        client.put("/api/v1/settings", json={"google_api_key": "k"})
+        assert "BOOKMARKS_PROFILE_PATH" not in settings_env_file.read_text()
+
+    def test_put_preserves_existing_keys_in_env_file(self, client, settings_env_file):
+        """PUT does not remove unrelated keys from the .env file."""
+        settings_env_file.write_text('CHROMA_PATH="/data/chroma"\n')
+        client.put("/api/v1/settings", json={"google_api_key": "k"})
+        assert 'CHROMA_PATH="/data/chroma"' in settings_env_file.read_text()
+
+    def test_put_updates_existing_key_in_place(self, client, settings_env_file):
+        """PUT updates an existing key rather than appending a duplicate."""
+        settings_env_file.write_text('GOOGLE_API_KEY="old"\n')
+        client.put("/api/v1/settings", json={"google_api_key": "new"})
+        content = settings_env_file.read_text()
+        assert "old" not in content
+        assert content.count("GOOGLE_API_KEY") == 1
+
+    def test_put_creates_env_file_if_missing(self, client, settings_env_file):
+        """PUT creates the .env file when it does not exist."""
+        assert not settings_env_file.exists()
+        client.put("/api/v1/settings", json={"google_api_key": "k"})
+        assert settings_env_file.exists()
