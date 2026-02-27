@@ -65,3 +65,39 @@ class TestSimpleChunker:
         text = "abcdefghijklmno"
         result = chunker.chunk(text)
         assert result[-1][-1] == text[-1]
+
+    def test_splits_at_sentence_boundary(self):
+        """Prefers sentence boundaries over raw character offsets.
+
+        chunk_size=22: search window covers indices [18, 22).
+        "! " at text[19:21] is inside the window → chunk ends at index 21,
+        not at the raw offset 22.
+        """
+        chunker = SimpleChunker(chunk_size=22, overlap=0)
+        text = "First sentence here! Second sentence."
+        result = chunker.chunk(text)
+        assert result[0] == "First sentence here! "
+
+    def test_splits_at_word_boundary_when_no_sentence_boundary(self):
+        """Falls back to word boundaries when no sentence boundary in search window.
+
+        chunk_size=13: search window covers indices [11, 13).
+        The space at index 11 is found → chunk ends at index 12 ("Hello world "),
+        not mid-word at the raw offset 13 ("Hello world f").
+        """
+        chunker = SimpleChunker(chunk_size=13, overlap=0)
+        text = "Hello world foobar"
+        result = chunker.chunk(text)
+        assert result[0] == "Hello world "
+
+    def test_splits_at_paragraph_boundary(self):
+        """Double newline (paragraph break) is treated as a sentence boundary.
+
+        chunk_size=15: search window covers indices [12, 15).
+        "\\n\\n" at text[12:14] is inside the window → chunk ends at index 14,
+        cleanly at the paragraph break.
+        """
+        chunker = SimpleChunker(chunk_size=15, overlap=0)
+        text = "Paragraph A.\n\nParagraph B here."
+        result = chunker.chunk(text)
+        assert result[0] == "Paragraph A.\n\n"
