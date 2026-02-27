@@ -132,6 +132,13 @@ body {
   color: #A89048;
 }
 
+.sidebar-nav-bottom {
+  list-style: none;
+  padding: 0.375rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
 .sidebar-footer {
   padding: 1rem 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.05);

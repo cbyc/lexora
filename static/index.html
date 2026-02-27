@@ -19,8 +19,9 @@
       <span class="brand-wordmark">Lexora</span>
     </div>
     <ul id="nav-list" class="sidebar-nav"></ul>
+    <ul id="nav-bottom" class="sidebar-nav-bottom"></ul>
     <div class="sidebar-footer">
-      <span class="sidebar-footer-text">&copy; Mehdi Khajeh</span>
+      <span class="sidebar-footer-text">&copy; Lexora</span>
     </div>
   </nav>
 
@@ -60,6 +61,7 @@
     ];
 
     const navList = document.getElementById("nav-list");
+    const navBottom = document.getElementById("nav-bottom");
     const content = document.getElementById("content");
     const moduleTitle = document.getElementById("module-title");
     let activeModuleId = null;
@@ -109,7 +111,8 @@
           </button>
         `;
         li.querySelector("button").addEventListener("click", () => loadModule(mod));
-        navList.appendChild(li);
+        const target = mod.id === "settings" ? navBottom : navList;
+        target.appendChild(li);
       });
 
       if (modules.length > 0) {
