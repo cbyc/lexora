@@ -110,7 +110,7 @@ Each router has its own `get_app_state` dependency function (not shared) to allo
 - `VectorStore` tests use `VectorStore.in_memory()`.
 - `PydanticAIAskAgent` tests mock pydantic-ai's `Agent` with `AsyncMock` — no real LLM call.
 - `GeminiEmbeddingModel` tests mock `google.genai.Client` — no real API call.
-- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides` for both `knowledge_get_app_state` and `feed_get_app_state`, plus `unittest.mock.patch` for loader functions. Patch targets use the router module path: `src.routers.knowledge.load_notes`, etc.
+- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides` for both `knowledge_get_app_state` and `feed_get_app_state`, plus `unittest.mock.patch` for loader functions. Patch targets use the router module path: `routers.knowledge.load_notes`, etc.
 - Loader tests use `tmp_path` and SQLite fixtures.
 - Feed tests use `FakeFeedStore`, `FakeFeedFetcher`, and `httpx.MockTransport`.
 - Eval tests live in `tests/evals/` and require a real LLM API key. Run them separately: `uv run pytest tests/evals/`.
@@ -142,6 +142,21 @@ Each router has its own `get_app_state` dependency function (not shared) to allo
 | `FEED_MAX_POSTS_PER_FEED` | `50` | Max posts fetched per feed |
 | `FEED_FETCH_TIMEOUT_SEC` | `10` | Per-feed fetch timeout (seconds) |
 | `FEED_DEFAULT_RANGE` | `last_month` | Default date range for feed queries |
+
+### Import Convention
+
+`src/` is the package root, **not** a Python package itself (`src/__init__.py` does not exist). All imports omit the `src.` prefix:
+
+```python
+from knowledge.pipeline import Pipeline   # correct
+from src.knowledge.pipeline import Pipeline  # wrong
+```
+
+This is enforced by:
+- `pyproject.toml`: `[tool.hatch.build] dev-mode-dirs = ["src"]` — editable install adds `src/` to `sys.path`
+- `pyproject.toml`: `[tool.pytest.ini_options] pythonpath = [".", "src"]` — pytest adds `src/` to `sys.path`
+
+Mock patch strings follow the same convention: `patch("routers.knowledge.load_notes")`, not `patch("src.routers.knowledge.load_notes")`.
 
 ### Notes
 
