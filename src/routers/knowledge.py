@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Request
 
-from src.app_state import AppState
-from src.config import Settings
-from src.knowledge.loaders.bookmarks import load_bookmarks
-from src.knowledge.loaders.notes import load_notes
-from src.models import AskResponse, QueryRequest, ReindexResponse
+from app_state import AppState
+from config import Settings
+from knowledge.loaders.bookmarks import load_bookmarks
+from knowledge.loaders.notes import load_notes
+from models import AskResponse, QueryRequest, ReindexResponse
 
 router = APIRouter(prefix="/api/v1")
 

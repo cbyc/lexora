@@ -1,6 +1,6 @@
 from pydantic_ai import Agent
 
-from src.models import AskResponse, Chunk, NOT_FOUND
+from models import AskResponse, Chunk, NOT_FOUND
 
 SYSTEM_PROMPT = f"""You are a retrieval-augmented assistant. Answer the user's question \
 using ONLY the provided context. Do not use any external knowledge.

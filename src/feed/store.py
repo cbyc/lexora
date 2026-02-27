@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from src.feed.models import DuplicateFeedError, Feed
+from feed.models import DuplicateFeedError, Feed
 
 
 class YamlFeedStore:

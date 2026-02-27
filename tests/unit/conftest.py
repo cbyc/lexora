@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.models import Chunk
+from models import Chunk
 
 
 @pytest.fixture

@@ -3,8 +3,8 @@
 import time
 from pathlib import Path
 
-from src.knowledge.loaders.sync_state import load_sync_state, save_sync_state
-from src.knowledge.loaders.models import Document
+from knowledge.loaders.sync_state import load_sync_state, save_sync_state
+from knowledge.loaders.models import Document
 
 
 def load_notes(

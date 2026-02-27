@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.models import NOT_FOUND, AskResponse
+from models import NOT_FOUND, AskResponse
 
 
 class TestAskResponse:

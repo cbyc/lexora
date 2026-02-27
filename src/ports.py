@@ -1,6 +1,6 @@
 from typing import Protocol
-from src.models import AskResponse, Chunk
-from src.feed.models import Feed, FeedError, Post
+from models import AskResponse, Chunk
+from feed.models import Feed, FeedError, Post
 
 
 class Chunker(Protocol):

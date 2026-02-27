@@ -18,8 +18,8 @@ from pydantic_ai import Agent
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from src.ask_agent import PydanticAIAskAgent
-from src.models import NOT_FOUND, AskResponse, Chunk
+from knowledge.ask_agent import PydanticAIAskAgent
+from models import NOT_FOUND, AskResponse, Chunk
 
 # ---------------------------------------------------------------------------
 # Inputs type

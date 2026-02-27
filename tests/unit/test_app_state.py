@@ -1,6 +1,6 @@
 """Tests for AppState NamedTuple."""
 
-from src.app_state import AppState
+from app_state import AppState
 
 
 class TestAppState:

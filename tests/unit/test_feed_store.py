@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from src.feed.models import DuplicateFeedError, Feed
-from src.feed.store import YamlFeedStore
+from feed.models import DuplicateFeedError, Feed
+from feed.store import YamlFeedStore
 
 
 class TestYamlFeedStore:

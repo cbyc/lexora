@@ -5,7 +5,7 @@ import uuid
 import chromadb
 import structlog
 
-from src.models import Chunk
+from models import Chunk
 
 logger = structlog.get_logger(__name__)
 

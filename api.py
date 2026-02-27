@@ -7,17 +7,17 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from src.app_state import AppState
-from src.config import Settings
-from src.feed.fetcher import HttpFeedFetcher
-from src.feed.service import FeedService
-from src.feed.store import YamlFeedStore
-from src.knowledge.ask_agent import PydanticAIAskAgent
-from src.knowledge.chunker import SimpleChunker
-from src.knowledge.embedder import GeminiEmbeddingModel
-from src.knowledge.pipeline import Pipeline
-from src.knowledge.vector_store import VectorStore
-from src.routers import feed, knowledge
+from app_state import AppState
+from config import Settings
+from feed.fetcher import HttpFeedFetcher
+from feed.service import FeedService
+from feed.store import YamlFeedStore
+from knowledge.ask_agent import PydanticAIAskAgent
+from knowledge.chunker import SimpleChunker
+from knowledge.embedder import GeminiEmbeddingModel
+from knowledge.pipeline import Pipeline
+from knowledge.vector_store import VectorStore
+from routers import feed, knowledge
 
 settings = Settings()
 
@@ -82,7 +82,11 @@ app = FastAPI(title="Lexora API", lifespan=lifespan)
 
 app.include_router(knowledge.router)
 app.include_router(feed.router)
-app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")
+app.mount(
+    "/",
+    StaticFiles(directory=Path(__file__).parent / "static", html=True),
+    name="static",
+)
 
 
 if __name__ == "__main__":

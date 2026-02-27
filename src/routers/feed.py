@@ -2,9 +2,9 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from src.app_state import AppState
-from src.feed.models import DuplicateFeedError
-from src.models import AddFeedRequest, AddFeedResponse
+from app_state import AppState
+from feed.models import DuplicateFeedError
+from models import AddFeedRequest, AddFeedResponse
 
 router = APIRouter(prefix="/api/v1")
 

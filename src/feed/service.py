@@ -1,8 +1,8 @@
 """FeedService application layer — orchestrates store and fetcher."""
 
-from src.feed.date_range import parse_date_range
-from src.feed.models import Feed, FeedError, Post
-from src.ports import FeedFetcher, FeedStore
+from feed.date_range import parse_date_range
+from feed.models import Feed, FeedError, Post
+from ports import FeedFetcher, FeedStore
 
 
 class FeedResult:

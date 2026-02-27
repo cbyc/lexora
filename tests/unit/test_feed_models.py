@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from src.feed.models import DuplicateFeedError, Feed, FeedError, Post
+from feed.models import DuplicateFeedError, Feed, FeedError, Post
 
 
 class TestFeedModels:

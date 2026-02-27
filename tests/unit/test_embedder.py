@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.knowledge.embedder import GeminiEmbeddingModel
+from knowledge.embedder import GeminiEmbeddingModel
 
 
 class TestGeminiEmbeddingModel:

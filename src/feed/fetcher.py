@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import feedparser
 import httpx
 
-from src.feed.models import Feed, FeedError, Post
+from feed.models import Feed, FeedError, Post
 
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 

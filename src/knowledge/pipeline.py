@@ -1,6 +1,6 @@
-from src.ports import AskAgent, Chunker, EmbeddingModel, DocumentStore
-from src.knowledge.loaders.models import Document
-from src.models import AskResponse, Chunk
+from ports import AskAgent, Chunker, EmbeddingModel, DocumentStore
+from knowledge.loaders.models import Document
+from models import AskResponse, Chunk
 
 
 class Pipeline:

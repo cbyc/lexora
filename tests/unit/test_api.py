@@ -7,15 +7,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api import app
-from src.app_state import AppState
-from src.config import Settings
-from src.feed.models import DuplicateFeedError, Feed, FeedError, Post
-from src.feed.service import FeedResult
-from src.knowledge.loaders.models import Document
-from src.models import NOT_FOUND, AskResponse, Chunk
-from src.routers.feed import get_app_state as feed_get_app_state
-from src.routers.knowledge import get_app_state as knowledge_get_app_state
-from src.routers.knowledge import get_settings
+from app_state import AppState
+from config import Settings
+from feed.models import DuplicateFeedError, Feed, FeedError, Post
+from feed.service import FeedResult
+from knowledge.loaders.models import Document
+from models import NOT_FOUND, AskResponse, Chunk
+from routers.feed import get_app_state as feed_get_app_state
+from routers.knowledge import get_app_state as knowledge_get_app_state
+from routers.knowledge import get_settings
 
 
 class FakePipeline:
@@ -148,8 +148,8 @@ class TestReindexEndpoint:
         """A reindex call should return HTTP 200."""
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
         with (
-            patch("src.routers.knowledge.load_notes", return_value=[]),
-            patch("src.routers.knowledge.load_bookmarks", return_value=[]),
+            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
         assert response.status_code == 200
@@ -160,8 +160,8 @@ class TestReindexEndpoint:
         state = make_app_state(pipeline=fake_pipeline)
         app.dependency_overrides[knowledge_get_app_state] = lambda: state
         with (
-            patch("src.routers.knowledge.load_notes", return_value=[]),
-            patch("src.routers.knowledge.load_bookmarks", return_value=[]),
+            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             client.post("/api/v1/reindex")
         assert len(fake_pipeline.add_docs_calls) == 1
@@ -174,8 +174,8 @@ class TestReindexEndpoint:
         note = Document(content="note content", source="note.txt")
         bookmark = Document(content="page content", source="https://example.com")
         with (
-            patch("src.routers.knowledge.load_notes", return_value=[note]),
-            patch("src.routers.knowledge.load_bookmarks", return_value=[bookmark]),
+            patch("routers.knowledge.load_notes", return_value=[note]),
+            patch("routers.knowledge.load_bookmarks", return_value=[bookmark]),
         ):
             client.post("/api/v1/reindex")
         docs_passed = fake_pipeline.add_docs_calls[0]
@@ -185,8 +185,8 @@ class TestReindexEndpoint:
         """Response body should contain notes_indexed and bookmarks_indexed fields."""
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
         with (
-            patch("src.routers.knowledge.load_notes", return_value=[]),
-            patch("src.routers.knowledge.load_bookmarks", return_value=[]),
+            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
         body = response.json()
@@ -202,8 +202,8 @@ class TestReindexEndpoint:
         ]
         bookmarks = [Document(content="b", source="https://example.com")]
         with (
-            patch("src.routers.knowledge.load_notes", return_value=notes),
-            patch("src.routers.knowledge.load_bookmarks", return_value=bookmarks),
+            patch("routers.knowledge.load_notes", return_value=notes),
+            patch("routers.knowledge.load_bookmarks", return_value=bookmarks),
         ):
             response = client.post("/api/v1/reindex")
         body = response.json()

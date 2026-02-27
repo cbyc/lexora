@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
-from src.knowledge.pipeline import Pipeline
-from src.feed.service import FeedService
+from knowledge.pipeline import Pipeline
+from feed.service import FeedService
 
 
 class AppState(NamedTuple):

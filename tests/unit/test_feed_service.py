@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.feed.models import DuplicateFeedError, Feed, FeedError, Post
-from src.feed.service import FeedService
+from feed.models import DuplicateFeedError, Feed, FeedError, Post
+from feed.service import FeedService
 
 
 class FakeFeedStore:

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.feed.date_range import parse_date_range
+from feed.date_range import parse_date_range
 
 
 class TestParseDateRange:

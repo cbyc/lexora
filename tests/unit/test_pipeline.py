@@ -2,9 +2,9 @@
 
 import asyncio
 
-from src.knowledge.loaders.models import Document
-from src.models import NOT_FOUND, AskResponse, Chunk
-from src.knowledge.pipeline import Pipeline
+from knowledge.loaders.models import Document
+from models import NOT_FOUND, AskResponse, Chunk
+from knowledge.pipeline import Pipeline
 
 DIM = 768
 

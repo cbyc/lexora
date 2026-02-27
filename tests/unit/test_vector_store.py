@@ -1,7 +1,7 @@
 """Tests for ChromaDB vector store operations."""
 
-from src.models import Chunk
-from src.knowledge.vector_store import VectorStore
+from models import Chunk
+from knowledge.vector_store import VectorStore
 
 
 class TestVectorStore:

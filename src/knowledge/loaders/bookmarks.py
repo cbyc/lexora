@@ -10,8 +10,8 @@ from pathlib import Path
 
 import trafilatura
 
-from src.knowledge.loaders.sync_state import load_sync_state, save_sync_state
-from src.knowledge.loaders.models import Document
+from knowledge.loaders.sync_state import load_sync_state, save_sync_state
+from knowledge.loaders.models import Document
 
 logger = structlog.get_logger(__name__)
 

@@ -1,8 +1,8 @@
-from src.knowledge.chunker import SimpleChunker
-from src.knowledge.embedder import GeminiEmbeddingModel
-from src.knowledge.pipeline import Pipeline
-from src.knowledge.vector_store import VectorStore
-from src.knowledge.ask_agent import PydanticAIAskAgent
+from knowledge.chunker import SimpleChunker
+from knowledge.embedder import GeminiEmbeddingModel
+from knowledge.pipeline import Pipeline
+from knowledge.vector_store import VectorStore
+from knowledge.ask_agent import PydanticAIAskAgent
 
 __all__ = [
     "SimpleChunker",

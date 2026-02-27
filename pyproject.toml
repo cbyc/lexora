@@ -21,11 +21,18 @@ dependencies = [
     "aiofiles>=25.1.0",
     "coverage>=7.13.4",
     "pytest-cov>=7.0.0",
-    "mutmut<3",
+    "mutmut>=3.5.0",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+dev-mode-dirs = ["src"]
+
 [tool.pytest.ini_options]
-pythonpath = [".", ".."]
+pythonpath = [".", "src"]
 testpaths = ["tests/unit"]
 markers = ["evals: requires a live LLM API key; run with pytest tests/evals/"]
 
@@ -38,5 +45,6 @@ dev = [
 exclude = ["mutants/"]
 
 [tool.mutmut]
-paths_to_mutate = "src/"
-tests_dir = "tests/unit/"
+paths_to_mutate = ["src/"]
+tests_dir = ["tests/unit/"]
+runner = ["pytest"]
