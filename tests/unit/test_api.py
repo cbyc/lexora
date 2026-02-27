@@ -646,3 +646,49 @@ class TestSettingsEndpoints:
         assert not settings_env_file.exists()
         client.put("/api/v1/settings", json={"google_api_key": "k"})
         assert settings_env_file.exists()
+
+
+class TestBrowseDirectoryEndpoint:
+    def test_returns_200(self, client):
+        """POST /api/v1/settings/browse-directory returns HTTP 200."""
+        with (
+            patch("routers.settings.sys") as mock_sys,
+            patch("routers.settings.subprocess.run") as mock_run,
+        ):
+            mock_sys.platform = "darwin"
+            mock_run.return_value = MagicMock(returncode=0, stdout="/sel/path\n")
+            response = client.post("/api/v1/settings/browse-directory")
+        assert response.status_code == 200
+
+    def test_returns_path_when_osascript_succeeds(self, client):
+        """Returns the selected path (stripped) when osascript exits 0."""
+        with (
+            patch("routers.settings.sys") as mock_sys,
+            patch("routers.settings.subprocess.run") as mock_run,
+        ):
+            mock_sys.platform = "darwin"
+            mock_run.return_value = MagicMock(returncode=0, stdout="/Users/me/notes\n")
+            body = client.post("/api/v1/settings/browse-directory").json()
+        assert body["path"] == "/Users/me/notes"
+
+    def test_returns_null_when_user_cancels(self, client):
+        """Returns null when osascript exits non-zero (user cancelled)."""
+        with (
+            patch("routers.settings.sys") as mock_sys,
+            patch("routers.settings.subprocess.run") as mock_run,
+        ):
+            mock_sys.platform = "darwin"
+            mock_run.return_value = MagicMock(returncode=1, stdout="")
+            body = client.post("/api/v1/settings/browse-directory").json()
+        assert body["path"] is None
+
+    def test_returns_null_on_non_macos(self, client):
+        """Returns null without calling subprocess on non-macOS platforms."""
+        with (
+            patch("routers.settings.sys") as mock_sys,
+            patch("routers.settings.subprocess.run") as mock_run,
+        ):
+            mock_sys.platform = "linux"
+            body = client.post("/api/v1/settings/browse-directory").json()
+        assert body["path"] is None
+        mock_run.assert_not_called()

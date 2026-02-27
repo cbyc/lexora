@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
@@ -23,6 +25,10 @@ class SettingsUpdateRequest(BaseModel):
 class SettingsSaveResponse(BaseModel):
     saved: bool
     restart_required: bool
+
+
+class BrowseResponse(BaseModel):
+    path: str | None
 
 
 def get_settings(request: Request) -> Settings:
@@ -82,3 +88,25 @@ def put_settings_endpoint(
     if updates:
         _write_env(env_file, updates)
     return SettingsSaveResponse(saved=True, restart_required=True)
+
+
+@router.post("/settings/browse-directory", response_model=BrowseResponse)
+def browse_directory_endpoint() -> BrowseResponse:
+    if sys.platform != "darwin":
+        return BrowseResponse(path=None)
+    try:
+        result = subprocess.run(
+            [
+                "osascript",
+                "-e",
+                'POSIX path of (choose folder with prompt "Select a folder:")',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode == 0:
+            return BrowseResponse(path=result.stdout.strip())
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return BrowseResponse(path=None)

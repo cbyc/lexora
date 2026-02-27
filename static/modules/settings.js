@@ -1,22 +1,31 @@
 export async function init(container, _apiBase) {
   container.innerHTML = `
     <div class="settings-form">
-      <div class="settings-section">
-        <div class="settings-field">
-          <label class="feed-control-label" for="settings-api-key">Google API Key</label>
-          <input id="settings-api-key" type="password" class="settings-input" placeholder="Enter new key to update" autocomplete="off">
-          <span id="settings-key-hint" class="settings-hint"></span>
-        </div>
-        <div class="settings-field">
-          <label class="feed-control-label" for="settings-notes-dir">Notes Directory</label>
+      <div class="settings-field">
+        <label class="settings-label" for="settings-api-key">Google API Key</label>
+        <input id="settings-api-key" type="password" class="settings-input"
+               placeholder="Enter new key to update" autocomplete="off">
+        <span id="settings-key-hint" class="settings-hint"></span>
+      </div>
+
+      <div class="settings-field">
+        <label class="settings-label" for="settings-notes-dir">Notes Directory</label>
+        <div class="settings-input-row">
           <input id="settings-notes-dir" type="text" class="settings-input">
-        </div>
-        <div class="settings-field">
-          <label class="feed-control-label" for="settings-bookmarks-dir">Firefox Profile Directory</label>
-          <input id="settings-bookmarks-dir" type="text" class="settings-input" placeholder="Leave blank to auto-detect">
+          <button class="settings-browse-btn" data-target="settings-notes-dir">Browse\u2026</button>
         </div>
       </div>
-      <div id="settings-banner" style="display:none"></div>
+
+      <div class="settings-field">
+        <label class="settings-label" for="settings-bookmarks-dir">Firefox Profile Directory</label>
+        <div class="settings-input-row">
+          <input id="settings-bookmarks-dir" type="text" class="settings-input"
+                 placeholder="Leave blank to auto-detect">
+          <button class="settings-browse-btn" data-target="settings-bookmarks-dir">Browse\u2026</button>
+        </div>
+      </div>
+
+      <div id="settings-banner" class="feed-warning" style="display:none"></div>
       <p id="settings-error" class="error-text" style="display:none"></p>
       <button id="settings-save-btn" class="settings-save-btn">Save Settings</button>
     </div>
@@ -30,6 +39,7 @@ export async function init(container, _apiBase) {
   const errorEl = container.querySelector("#settings-error");
   const saveBtn = container.querySelector("#settings-save-btn");
 
+  // ── Load current settings ────────────────────────────────────────
   try {
     const resp = await fetch("/api/v1/settings");
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -49,6 +59,28 @@ export async function init(container, _apiBase) {
     errorEl.style.display = "";
   }
 
+  // ── Browse buttons ───────────────────────────────────────────────
+  container.querySelectorAll(".settings-browse-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const resp = await fetch("/api/v1/settings/browse-directory", { method: "POST" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data.path) {
+          const targetId = btn.dataset.target;
+          container.querySelector(`#${targetId}`).value = data.path;
+        }
+      } catch (err) {
+        errorEl.textContent = `Browse failed: ${err.message}`;
+        errorEl.style.display = "";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // ── Save ─────────────────────────────────────────────────────────
   saveBtn.addEventListener("click", async () => {
     saveBtn.disabled = true;
     banner.style.display = "none";
@@ -72,7 +104,6 @@ export async function init(container, _apiBase) {
         keyHint.textContent = "Currently set";
         keyHint.className = "settings-hint settings-hint-set";
       }
-      banner.className = "feed-warning";
       banner.textContent = "Settings saved. Restart the server for changes to take effect.";
       banner.style.display = "";
     } catch (err) {
