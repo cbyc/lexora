@@ -5,5 +5,5 @@ from feed.service import FeedService
 
 
 class AppState(NamedTuple):
-    pipeline: Pipeline
+    pipeline: Pipeline | None
     feed_service: FeedService

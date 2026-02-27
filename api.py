@@ -28,32 +28,30 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if settings.google_api_key is None:
-        raise RuntimeError(
-            "GOOGLE_API_KEY is required but not set. "
-            "Set it in your environment or .env file."
-        )
-
-    chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
-    embedding_model = GeminiEmbeddingModel(
-        model_name=settings.gemini_embedding_model,
-        api_key=settings.google_api_key,
-    )
-
-    if settings.chroma_path:
-        vectorstore = VectorStore.from_path(
-            settings.chroma_path,
-            settings.chroma_collection,
-            settings.embedding_dimension,
-        )
+        logger.warning("mind_disabled", reason="GOOGLE_API_KEY not set")
+        pipeline = None
     else:
-        vectorstore = VectorStore.in_memory(
-            settings.chroma_collection,
-            settings.embedding_dimension,
+        chunker = SimpleChunker(settings.chunk_size, settings.chunk_overlap)
+        embedding_model = GeminiEmbeddingModel(
+            model_name=settings.gemini_embedding_model,
+            api_key=settings.google_api_key,
         )
-    vectorstore.ensure_collection()
 
-    ask_agent = PydanticAIAskAgent(settings.llm_model)
-    pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
+        if settings.chroma_path:
+            vectorstore = VectorStore.from_path(
+                settings.chroma_path,
+                settings.chroma_collection,
+                settings.embedding_dimension,
+            )
+        else:
+            vectorstore = VectorStore.in_memory(
+                settings.chroma_collection,
+                settings.embedding_dimension,
+            )
+        vectorstore.ensure_collection()
+
+        ask_agent = PydanticAIAskAgent(settings.llm_model)
+        pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
 
     feed_store = YamlFeedStore(settings.feed_data_file)
     feed_store.ensure_data_file()
@@ -69,12 +67,11 @@ async def lifespan(app: FastAPI):
     app.state.app_state = AppState(pipeline=pipeline, feed_service=feed_service)
     app.state.settings = settings
 
-    logger.info(
-        "startup_complete",
-        embedding_model=settings.gemini_embedding_model,
-        llm_model=settings.llm_model,
-        feed_data_file=settings.feed_data_file,
-    )
+    log_kwargs = {"feed_data_file": settings.feed_data_file}
+    if pipeline is not None:
+        log_kwargs["embedding_model"] = settings.gemini_embedding_model
+        log_kwargs["llm_model"] = settings.llm_model
+    logger.info("startup_complete", **log_kwargs)
     yield
 
 

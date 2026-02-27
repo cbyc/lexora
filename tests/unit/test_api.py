@@ -62,9 +62,12 @@ class FakeFeedService:
         return Feed(name=name, url=url)
 
 
-def make_app_state(pipeline=None, feed_service=None) -> AppState:
+_UNSET = object()
+
+
+def make_app_state(pipeline=_UNSET, feed_service=None) -> AppState:
     return AppState(
-        pipeline=pipeline or FakePipeline(),
+        pipeline=FakePipeline() if pipeline is _UNSET else pipeline,
         feed_service=feed_service or FakeFeedService(),
     )
 
@@ -334,14 +337,18 @@ class TestGetRSSEndpoint:
 
 
 class TestLifespan:
-    def test_startup_raises_when_google_api_key_missing(self):
-        """Lifespan raises RuntimeError immediately when GOOGLE_API_KEY is absent."""
+    def test_startup_succeeds_when_google_api_key_missing(self):
+        """Lifespan starts without GOOGLE_API_KEY; pipeline is set to None."""
         fake_settings = MagicMock()
         fake_settings.google_api_key = None
-        with patch("api.settings", fake_settings):
-            with pytest.raises(RuntimeError, match="GOOGLE_API_KEY"):
-                with TestClient(app):
-                    pass
+        with (
+            patch("api.settings", fake_settings),
+            patch("api.YamlFeedStore"),
+            patch("api.HttpFeedFetcher"),
+            patch("api.FeedService"),
+        ):
+            with TestClient(app):
+                assert app.state.app_state.pipeline is None
 
     def test_startup_uses_in_memory_vector_store_when_chroma_path_not_set(self):
         """VectorStore.in_memory is called when settings.chroma_path is falsy."""
@@ -403,6 +410,51 @@ class TestLifespan:
                 state = app.state.app_state
         assert state.pipeline is fake_pipeline
         assert state.feed_service is fake_feed_service
+
+
+class TestKnowledgeEndpointsWhenPipelineDisabled:
+    @pytest.fixture(autouse=True)
+    def disabled_state(self):
+        state = make_app_state(pipeline=None)
+        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+
+    def test_query_returns_503(self, client):
+        """POST /query returns 503 when pipeline is disabled."""
+        response = client.post("/api/v1/query", json={"question": "test?"})
+        assert response.status_code == 503
+
+    def test_ask_returns_503(self, client):
+        """POST /ask returns 503 when pipeline is disabled."""
+        response = client.post("/api/v1/ask", json={"question": "test?"})
+        assert response.status_code == 503
+
+    def test_reindex_returns_503(self, client):
+        """POST /reindex returns 503 when pipeline is disabled."""
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        with (
+            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_bookmarks", return_value=[]),
+        ):
+            response = client.post("/api/v1/reindex")
+        assert response.status_code == 503
+
+
+class TestCapabilities:
+    def test_mind_enabled_when_pipeline_present(self, client):
+        """GET /capabilities returns mind_enabled=true when pipeline is wired."""
+        state = make_app_state(pipeline=FakePipeline())
+        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        response = client.get("/api/v1/capabilities")
+        assert response.status_code == 200
+        assert response.json() == {"mind_enabled": True, "feed_enabled": True}
+
+    def test_mind_disabled_when_pipeline_absent(self, client):
+        """GET /capabilities returns mind_enabled=false when pipeline is None."""
+        state = make_app_state(pipeline=None)
+        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        response = client.get("/api/v1/capabilities")
+        assert response.status_code == 200
+        assert response.json() == {"mind_enabled": False, "feed_enabled": True}
 
 
 class TestStaticFiles:

@@ -33,20 +33,22 @@
   </div>
 
   <script>
-    const MODULES = [
+    const ALL_MODULES = [
       {
         id: "rss",
         label: "Feed",
         subtitle: "RSS Reader",
         apiBase: "",
-        module: "modules/feed.js"
+        module: "modules/feed.js",
+        capabilityKey: "feed_enabled"
       },
       {
         id: "kb-chat",
         label: "Mind",
         subtitle: "Knowledge Base",
         apiBase: "",
-        module: "modules/mind.js"
+        module: "modules/mind.js",
+        capabilityKey: "mind_enabled"
       }
     ];
 
@@ -54,19 +56,6 @@
     const content = document.getElementById("content");
     const moduleTitle = document.getElementById("module-title");
     let activeModuleId = null;
-
-    // Build nav items
-    MODULES.forEach((mod) => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <button data-module="${mod.id}" class="nav-item">
-          <span class="nav-item-label">${mod.label}</span>
-          <span class="nav-item-sub">${mod.subtitle}</span>
-        </button>
-      `;
-      li.querySelector("button").addEventListener("click", () => loadModule(mod));
-      navList.appendChild(li);
-    });
 
     async function loadModule(mod) {
       // Update active state
@@ -91,10 +80,35 @@
       }
     }
 
-    // Auto-load first module
-    if (MODULES.length > 0) {
-      loadModule(MODULES[0]);
+    async function init() {
+      let capabilities;
+      try {
+        const resp = await fetch("/api/v1/capabilities");
+        capabilities = await resp.json();
+      } catch {
+        capabilities = { feed_enabled: true, mind_enabled: true };
+      }
+
+      const modules = ALL_MODULES.filter(m => capabilities[m.capabilityKey] !== false);
+
+      modules.forEach((mod) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <button data-module="${mod.id}" class="nav-item">
+            <span class="nav-item-label">${mod.label}</span>
+            <span class="nav-item-sub">${mod.subtitle}</span>
+          </button>
+        `;
+        li.querySelector("button").addEventListener("click", () => loadModule(mod));
+        navList.appendChild(li);
+      });
+
+      if (modules.length > 0) {
+        loadModule(modules[0]);
+      }
     }
+
+    init();
   </script>
 </body>
 </html>
