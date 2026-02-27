@@ -19,10 +19,13 @@ dependencies = [
     "feedparser>=6.0.12",
     "httpx>=0.28.1",
     "aiofiles>=25.1.0",
+    "coverage>=7.13.4",
+    "pytest-cov>=7.0.0",
+    "mutmut<3",
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", ".."]
 testpaths = ["tests/unit"]
 markers = ["evals: requires a live LLM API key; run with pytest tests/evals/"]
 
@@ -30,3 +33,10 @@ markers = ["evals: requires a live LLM API key; run with pytest tests/evals/"]
 dev = [
     "pydantic-ai[evals]>=1.63.0",
 ]
+
+[tool.ruff]
+exclude = ["mutants/"]
+
+[tool.mutmut]
+paths_to_mutate = "src/"
+tests_dir = "tests/unit/"
