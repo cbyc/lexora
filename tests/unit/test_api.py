@@ -262,8 +262,8 @@ class TestAskEndpoint:
 
 
 class TestGetRSSEndpoint:
-    def test_returns_200_with_posts_and_errors_in_body(self, client):
-        """GET /api/v1/rss should return 200 with posts and errors in the body."""
+    def test_returns_200_with_posts_as_array(self, client):
+        """GET /api/v1/rss should return 200 with a plain array of posts."""
         post = Post(
             feed_name="Feed A",
             title="Article",
@@ -276,20 +276,18 @@ class TestGetRSSEndpoint:
         response = client.get("/api/v1/rss")
         assert response.status_code == 200
         body = response.json()
-        assert "posts" in body
-        assert "errors" in body
-        assert len(body["posts"]) == 1
-        assert body["posts"][0]["title"] == "Article"
+        assert isinstance(body, list)
+        assert len(body) == 1
+        assert body[0]["title"] == "Article"
+        assert body[0]["feed_name"] == "Feed A"
 
-    def test_no_feeds_returns_empty_lists(self, client):
-        """GET /api/v1/rss with no feeds returns empty posts and errors."""
+    def test_no_feeds_returns_empty_array(self, client):
+        """GET /api/v1/rss with no feeds returns an empty array."""
         state = make_app_state(feed_service=FakeFeedService())
         app.dependency_overrides[feed_get_app_state] = lambda: state
         response = client.get("/api/v1/rss")
         assert response.status_code == 200
-        body = response.json()
-        assert body["posts"] == []
-        assert body["errors"] == []
+        assert response.json() == []
 
     def test_invalid_range_returns_400(self, client):
         """GET /api/v1/rss with invalid range returns 400."""
@@ -306,16 +304,33 @@ class TestGetRSSEndpoint:
         response = client.get("/api/v1/rss?range=bad_range")
         assert response.status_code == 400
 
-    def test_errors_returned_in_body(self, client):
-        """GET /api/v1/rss should include feed errors in the response body."""
+    def test_all_feeds_failed_sets_header(self, client):
+        """GET /api/v1/rss sets X-Feed-Errors header when all feeds fail."""
         error = FeedError("Bad Feed", "https://bad.com/rss", "timeout")
         result = FeedResult(posts=[], errors=[error])
         state = make_app_state(feed_service=FakeFeedService(result=result))
         app.dependency_overrides[feed_get_app_state] = lambda: state
         response = client.get("/api/v1/rss")
-        body = response.json()
-        assert len(body["errors"]) == 1
-        assert body["errors"][0]["feed_name"] == "Bad Feed"
+        assert response.status_code == 200
+        assert response.json() == []
+        assert response.headers.get("x-feed-errors") == "all-feeds-failed"
+
+    def test_partial_failure_no_header(self, client):
+        """GET /api/v1/rss does not set X-Feed-Errors when some posts are returned."""
+        post = Post(
+            feed_name="Good Feed",
+            title="OK",
+            url="https://example.com/ok",
+            published_at=datetime(2026, 2, 20, tzinfo=timezone.utc),
+        )
+        error = FeedError("Bad Feed", "https://bad.com/rss", "timeout")
+        result = FeedResult(posts=[post], errors=[error])
+        state = make_app_state(feed_service=FakeFeedService(result=result))
+        app.dependency_overrides[feed_get_app_state] = lambda: state
+        response = client.get("/api/v1/rss")
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.headers.get("x-feed-errors") is None
 
 
 class TestStaticFiles:

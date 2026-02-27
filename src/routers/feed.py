@@ -1,5 +1,6 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from src.app_state import AppState
 from src.feed.models import DuplicateFeedError
@@ -30,21 +31,21 @@ async def get_rss(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {
-        "posts": [
-            {
-                "feed_name": p.feed_name,
-                "title": p.title,
-                "url": p.url,
-                "published_at": p.published_at.isoformat(),
-            }
-            for p in result.posts
-        ],
-        "errors": [
-            {"feed_name": e.feed_name, "url": e.url, "error": e.error}
-            for e in result.errors
-        ],
-    }
+    posts = [
+        {
+            "feed_name": p.feed_name,
+            "title": p.title,
+            "url": p.url,
+            "published_at": p.published_at.isoformat(),
+        }
+        for p in result.posts
+    ]
+
+    headers = {}
+    if result.errors and not result.posts:
+        headers["X-Feed-Errors"] = "all-feeds-failed"
+
+    return JSONResponse(content=posts, headers=headers)
 
 
 @router.put("/rss", status_code=201)

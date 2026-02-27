@@ -66,8 +66,8 @@ export function init(container, apiBase) {
   async function fetchPosts() {
     const range = rangeSelect.value;
     const url = range
-      ? `${apiBase}/rss?range=${range}`
-      : `${apiBase}/rss`;
+      ? `${apiBase}/api/v1/rss?range=${range}`
+      : `${apiBase}/api/v1/rss`;
 
     postList.innerHTML = '<p class="loading-text">Fetching posts\u2026</p>';
     warnings.innerHTML = "";
@@ -104,7 +104,7 @@ function renderPosts(posts, container) {
       <div class="feed-empty">
         <p class="feed-empty-title">No posts in this range.</p>
         <p class="feed-empty-body">Try a wider date range, or add a feed via the API:</p>
-        <code class="feed-empty-code">curl -X PUT http://localhost:9001/rss \\
+        <code class="feed-empty-code">curl -X PUT http://localhost:9002/api/v1/rss \\
   -H "Content-Type: application/json" \\
   -d '{"name": "Example", "url": "https://example.com/rss"}'</code>
       </div>
