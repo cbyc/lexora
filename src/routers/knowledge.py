@@ -30,14 +30,6 @@ def _require_pipeline(state: AppState) -> Pipeline:
     return state.pipeline
 
 
-@router.get("/capabilities")
-def capabilities(state: AppState = Depends(get_app_state)) -> dict:
-    return {
-        "mind_enabled": state.pipeline is not None,
-        "feed_enabled": True,
-    }
-
-
 @router.post("/query")
 async def query(request: QueryRequest, state: AppState = Depends(get_app_state)):
     pipeline = _require_pipeline(state)

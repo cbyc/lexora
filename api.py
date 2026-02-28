@@ -18,7 +18,7 @@ from knowledge.chunker import SimpleChunker
 from knowledge.embedder import GeminiEmbeddingModel
 from knowledge.pipeline import Pipeline
 from knowledge.vector_store import VectorStore
-from routers import feed, knowledge, settings as settings_mod
+from routers import capabilities, feed, knowledge, settings as settings_mod
 
 settings = Settings()
 
@@ -82,6 +82,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Lexora API", lifespan=lifespan)
 
+app.include_router(capabilities.router)
 app.include_router(knowledge.router)
 app.include_router(feed.router)
 app.include_router(settings_mod.router)

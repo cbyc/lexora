@@ -14,6 +14,7 @@ from feed.models import DuplicateFeedError, Feed, FeedError, Post
 from feed.service import FeedResult
 from knowledge.loaders.models import Document
 from models import NOT_FOUND, AskResponse, Chunk
+from routers.capabilities import get_app_state as capabilities_get_app_state
 from routers.feed import get_app_state as feed_get_app_state
 from routers.knowledge import get_app_state as knowledge_get_app_state
 from routers.knowledge import get_settings
@@ -471,7 +472,7 @@ class TestCapabilities:
     def test_mind_enabled_when_pipeline_present(self, client):
         """GET /capabilities returns mind_enabled=true when pipeline is wired."""
         state = make_app_state(pipeline=FakePipeline())
-        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        app.dependency_overrides[capabilities_get_app_state] = lambda: state
         response = client.get("/api/v1/capabilities")
         assert response.status_code == 200
         assert response.json() == {"mind_enabled": True, "feed_enabled": True}
@@ -479,7 +480,7 @@ class TestCapabilities:
     def test_mind_disabled_when_pipeline_absent(self, client):
         """GET /capabilities returns mind_enabled=false when pipeline is None."""
         state = make_app_state(pipeline=None)
-        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        app.dependency_overrides[capabilities_get_app_state] = lambda: state
         response = client.get("/api/v1/capabilities")
         assert response.status_code == 200
         assert response.json() == {"mind_enabled": False, "feed_enabled": True}
