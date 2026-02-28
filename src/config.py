@@ -40,3 +40,4 @@ class Settings(BaseSettings):
 
     # LLM
     llm_model: str = "google-gla:gemini-2.0-flash"
+    file_interpreter_model: str = "gemini-2.0-flash"

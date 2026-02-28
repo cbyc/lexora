@@ -16,6 +16,7 @@ from feed.store import YamlFeedStore
 from knowledge.ask_agent import PydanticAIAskAgent
 from knowledge.chunker import SimpleChunker
 from knowledge.embedder import GeminiEmbeddingModel
+from knowledge.file_interpreter import GeminiFileInterpreter
 from knowledge.pipeline import Pipeline
 from knowledge.vector_store import VectorStore
 from routers import capabilities, feed, knowledge, settings as settings_mod
@@ -58,6 +59,15 @@ async def lifespan(app: FastAPI):
         ask_agent = PydanticAIAskAgent(settings.llm_model)
         pipeline = Pipeline(chunker, embedding_model, vectorstore, ask_agent)
 
+    file_interpreter = (
+        GeminiFileInterpreter(
+            model=settings.file_interpreter_model,
+            api_key=settings.google_api_key,
+        )
+        if settings.google_api_key
+        else None
+    )
+
     feed_store = YamlFeedStore(settings.feed_data_file)
     feed_store.ensure_data_file()
     feed_fetcher = HttpFeedFetcher()
@@ -69,7 +79,11 @@ async def lifespan(app: FastAPI):
         timeout=float(settings.feed_fetch_timeout_sec),
     )
 
-    app.state.app_state = AppState(pipeline=pipeline, feed_service=feed_service)
+    app.state.app_state = AppState(
+        pipeline=pipeline,
+        feed_service=feed_service,
+        file_interpreter=file_interpreter,
+    )
     app.state.settings = settings
 
     log_kwargs = {"feed_data_file": settings.feed_data_file}

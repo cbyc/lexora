@@ -51,7 +51,9 @@ async def reindex(
 ):
     pipeline = _require_pipeline(state)
 
-    notes = load_notes(cfg.notes_dir, cfg.notes_sync_state_path)
+    notes = await load_notes(
+        cfg.notes_dir, cfg.notes_sync_state_path, state.file_interpreter
+    )
     logger.info("notes_loaded", count=len(notes))
 
     bookmarks = load_bookmarks(

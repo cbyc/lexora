@@ -19,6 +19,7 @@ dependencies = [
     "feedparser>=6.0.12",
     "httpx>=0.28.1",
     "aiofiles>=25.1.0",
+    "mistune>=3.0.2",
     "coverage>=7.13.4",
     "pytest-cov>=7.0.0",
     "mutmut>=3.5.0",

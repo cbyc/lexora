@@ -47,3 +47,9 @@ class FeedFetcher(Protocol):
     async def fetch_all_feeds(
         self, feeds: list[Feed], max_posts_per_feed: int, timeout: float
     ) -> tuple[list[Post], list[FeedError]]: ...
+
+
+class FileInterpreter(Protocol):
+    async def interpret(
+        self, file_bytes: bytes, filename: str, system_prompt: str
+    ) -> str: ...

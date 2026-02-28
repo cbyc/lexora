@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -155,7 +155,7 @@ class TestReindexEndpoint:
         """A reindex call should return HTTP 200."""
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
         with (
-            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
             patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
@@ -167,7 +167,7 @@ class TestReindexEndpoint:
         state = make_app_state(pipeline=fake_pipeline)
         app.dependency_overrides[knowledge_get_app_state] = lambda: state
         with (
-            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
             patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             client.post("/api/v1/reindex")
@@ -181,7 +181,7 @@ class TestReindexEndpoint:
         note = Document(content="note content", source="note.txt")
         bookmark = Document(content="page content", source="https://example.com")
         with (
-            patch("routers.knowledge.load_notes", return_value=[note]),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[note])),
             patch("routers.knowledge.load_bookmarks", return_value=[bookmark]),
         ):
             client.post("/api/v1/reindex")
@@ -192,7 +192,7 @@ class TestReindexEndpoint:
         """Response body should contain notes_indexed and bookmarks_indexed fields."""
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
         with (
-            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
             patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
@@ -209,7 +209,7 @@ class TestReindexEndpoint:
         ]
         bookmarks = [Document(content="b", source="https://example.com")]
         with (
-            patch("routers.knowledge.load_notes", return_value=notes),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=notes)),
             patch("routers.knowledge.load_bookmarks", return_value=bookmarks),
         ):
             response = client.post("/api/v1/reindex")
@@ -461,7 +461,7 @@ class TestKnowledgeEndpointsWhenPipelineDisabled:
         """POST /reindex returns 503 when pipeline is disabled."""
         app.dependency_overrides[get_settings] = lambda: Settings()
         with (
-            patch("routers.knowledge.load_notes", return_value=[]),
+            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
             patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
