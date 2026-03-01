@@ -1,8 +1,8 @@
-from knowledge.chunker import SimpleChunker
-from knowledge.embedder import GeminiEmbeddingModel
-from knowledge.pipeline import Pipeline
-from knowledge.vector_store import VectorStore
-from knowledge.ask_agent import PydanticAIAskAgent
+from lexora.knowledge.chunker import SimpleChunker
+from lexora.knowledge.embedder import GeminiEmbeddingModel
+from lexora.knowledge.pipeline import Pipeline
+from lexora.knowledge.vector_store import VectorStore
+from lexora.knowledge.ask_agent import PydanticAIAskAgent
 
 __all__ = [
     "SimpleChunker",
