@@ -50,6 +50,14 @@ export async function init(container, _apiBase) {
             </div>
             <span class="settings-hint">Path to Firefox profile for bookmark sync</span>
           </div>
+
+          <div class="settings-field">
+            <span class="settings-hint">Re-index the knowledge base from the notes directory above and browser bookmarks.</span>
+            <div style="margin-top:0.5rem">
+              <button id="settings-reindex-btn" class="settings-reindex-btn">Reindex</button>
+              <span id="settings-reindex-status" class="settings-reindex-status" style="display:none"></span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -72,6 +80,8 @@ export async function init(container, _apiBase) {
   const banner = container.querySelector("#settings-banner");
   const errorEl = container.querySelector("#settings-error");
   const saveBtn = container.querySelector("#settings-save-btn");
+  const reindexBtn = container.querySelector("#settings-reindex-btn");
+  const reindexStatus = container.querySelector("#settings-reindex-status");
 
   function setKeyBadge(isSet) {
     if (isSet) {
@@ -116,6 +126,36 @@ export async function init(container, _apiBase) {
         btn.disabled = false;
       }
     });
+  });
+
+  // ── Reindex ──────────────────────────────────────────────────────
+  reindexBtn.addEventListener("click", async () => {
+    reindexBtn.disabled = true;
+    reindexBtn.textContent = "Reindexing\u2026";
+    reindexStatus.style.display = "none";
+    reindexStatus.className = "settings-reindex-status";
+
+    try {
+      const resp = await fetch("/api/v1/reindex", { method: "POST" });
+      if (resp.status === 409) {
+        reindexStatus.textContent = "Reindex is already running.";
+        reindexStatus.className = "settings-reindex-status amber";
+        reindexStatus.style.display = "";
+      } else if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      } else {
+        reindexStatus.textContent = "Reindex started \u2014 running in the background.";
+        reindexStatus.className = "settings-reindex-status success";
+        reindexStatus.style.display = "";
+        setTimeout(() => { reindexStatus.style.display = "none"; }, 6000);
+      }
+    } catch (err) {
+      errorEl.textContent = `Reindex failed: ${err.message}`;
+      errorEl.style.display = "";
+    } finally {
+      reindexBtn.disabled = false;
+      reindexBtn.textContent = "Reindex";
+    }
   });
 
   // ── Save ─────────────────────────────────────────────────────────

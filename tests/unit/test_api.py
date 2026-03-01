@@ -14,6 +14,7 @@ from feed.models import DuplicateFeedError, Feed, FeedError, Post
 from feed.service import FeedResult
 from knowledge.loaders.models import Document
 from models import NOT_FOUND, AskResponse, Chunk
+from routers.knowledge import _run_reindex
 from routers.capabilities import get_app_state as capabilities_get_app_state
 from routers.feed import get_app_state as feed_get_app_state
 from routers.knowledge import get_app_state as knowledge_get_app_state
@@ -151,71 +152,73 @@ class TestReindexEndpoint:
         app.dependency_overrides[get_settings] = lambda: Settings()
         yield
 
-    def test_returns_200(self, client):
-        """A reindex call should return HTTP 200."""
+    @pytest.fixture(autouse=True)
+    def reset_reindex_task(self):
+        import routers.knowledge as rk
+
+        rk._reindex_task = None
+        yield
+        rk._reindex_task = None
+
+    def test_returns_202_when_no_reindex_running(self, client):
+        """POST /reindex returns 202 when no reindex is currently running."""
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
-        with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
-            patch("routers.knowledge.load_bookmarks", return_value=[]),
-        ):
+        with patch("asyncio.create_task", return_value=MagicMock()):
             response = client.post("/api/v1/reindex")
-        assert response.status_code == 200
+        assert response.status_code == 202
 
-    def test_calls_add_docs_on_pipeline(self, client):
-        """Reindex should call add_docs on the pipeline exactly once."""
+    def test_response_body_is_started(self, client):
+        """Response body is {"status": "started"} on successful reindex launch."""
+        app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
+        with patch("asyncio.create_task", return_value=MagicMock()):
+            response = client.post("/api/v1/reindex")
+        assert response.json() == {"status": "started"}
+
+    def test_returns_409_when_reindex_already_running(self, client):
+        """POST /reindex returns 409 when a reindex task is already in progress."""
+        import routers.knowledge as rk
+
+        app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
+        rk._reindex_task = MagicMock(done=lambda: False)
+        response = client.post("/api/v1/reindex")
+        assert response.status_code == 409
+
+    def test_503_when_pipeline_disabled(self, client):
+        """POST /reindex returns 503 when pipeline is disabled."""
+        state = make_app_state(pipeline=None)
+        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        response = client.post("/api/v1/reindex")
+        assert response.status_code == 503
+
+
+class TestRunReindex:
+    @pytest.mark.anyio
+    async def test_calls_add_docs_with_combined_docs(self):
+        """_run_reindex passes notes + bookmarks merged into a single add_docs call."""
         fake_pipeline = FakePipeline()
         state = make_app_state(pipeline=fake_pipeline)
-        app.dependency_overrides[knowledge_get_app_state] = lambda: state
-        with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
-            patch("routers.knowledge.load_bookmarks", return_value=[]),
-        ):
-            client.post("/api/v1/reindex")
-        assert len(fake_pipeline.add_docs_calls) == 1
-
-    def test_combines_notes_and_bookmarks_into_one_call(self, client):
-        """Notes and bookmarks should be merged before being passed to add_docs."""
-        fake_pipeline = FakePipeline()
-        state = make_app_state(pipeline=fake_pipeline)
-        app.dependency_overrides[knowledge_get_app_state] = lambda: state
+        cfg = Settings()
         note = Document(content="note content", source="note.txt")
         bookmark = Document(content="page content", source="https://example.com")
         with (
             patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[note])),
             patch("routers.knowledge.load_bookmarks", return_value=[bookmark]),
         ):
-            client.post("/api/v1/reindex")
-        docs_passed = fake_pipeline.add_docs_calls[0]
-        assert len(docs_passed) == 2
+            await _run_reindex(fake_pipeline, cfg, state)
+        assert fake_pipeline.add_docs_calls[0] == [note, bookmark]
 
-    def test_response_body_has_expected_fields(self, client):
-        """Response body should contain notes_indexed and bookmarks_indexed fields."""
-        app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
+    @pytest.mark.anyio
+    async def test_calls_add_docs_once(self):
+        """_run_reindex calls add_docs exactly once."""
+        fake_pipeline = FakePipeline()
+        state = make_app_state(pipeline=fake_pipeline)
+        cfg = Settings()
         with (
             patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
             patch("routers.knowledge.load_bookmarks", return_value=[]),
         ):
-            response = client.post("/api/v1/reindex")
-        body = response.json()
-        assert "notes_indexed" in body
-        assert "bookmarks_indexed" in body
-
-    def test_response_counts_reflect_loaded_documents(self, client):
-        """notes_indexed and bookmarks_indexed should match the number of docs loaded."""
-        app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
-        notes = [
-            Document(content="n", source="a.txt"),
-            Document(content="n2", source="b.txt"),
-        ]
-        bookmarks = [Document(content="b", source="https://example.com")]
-        with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=notes)),
-            patch("routers.knowledge.load_bookmarks", return_value=bookmarks),
-        ):
-            response = client.post("/api/v1/reindex")
-        body = response.json()
-        assert body["notes_indexed"] == 2
-        assert body["bookmarks_indexed"] == 1
+            await _run_reindex(fake_pipeline, cfg, state)
+        assert len(fake_pipeline.add_docs_calls) == 1
 
 
 class TestAskEndpoint:

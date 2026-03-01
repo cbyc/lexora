@@ -1,3 +1,5 @@
+import asyncio
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -6,11 +8,13 @@ from config import Settings
 from knowledge.loaders.bookmarks import load_bookmarks
 from knowledge.loaders.notes import load_notes
 from knowledge.pipeline import Pipeline
-from models import AskResponse, QueryRequest, ReindexResponse
+from models import AskResponse, QueryRequest
 
 router = APIRouter(prefix="/api/v1")
 
 logger = structlog.get_logger(__name__)
+
+_reindex_task: asyncio.Task | None = None
 
 
 def get_app_state(request: Request) -> AppState:
@@ -30,6 +34,24 @@ def _require_pipeline(state: AppState) -> Pipeline:
     return state.pipeline
 
 
+async def _run_reindex(pipeline: Pipeline, cfg: Settings, state: AppState) -> None:
+    notes = await load_notes(
+        cfg.notes_dir, cfg.notes_sync_state_path, state.file_interpreter
+    )
+    logger.info("notes_loaded", count=len(notes))
+
+    bookmarks = load_bookmarks(
+        cfg.bookmarks_profile_path,
+        cfg.bookmarks_sync_state_path,
+        cfg.bookmarks_fetch_timeout,
+        cfg.bookmarks_max_content_length,
+    )
+    logger.info("bookmarks_found", count=len(bookmarks))
+
+    await pipeline.add_docs(notes + bookmarks)
+    logger.info("reindex_complete", notes=len(notes), bookmarks=len(bookmarks))
+
+
 @router.post("/query")
 async def query(request: QueryRequest, state: AppState = Depends(get_app_state)):
     pipeline = _require_pipeline(state)
@@ -44,27 +66,14 @@ async def ask(
     return await pipeline.ask(request.question)
 
 
-@router.post("/reindex")
+@router.post("/reindex", status_code=202)
 async def reindex(
     state: AppState = Depends(get_app_state),
     cfg: Settings = Depends(get_settings),
 ):
+    global _reindex_task
     pipeline = _require_pipeline(state)
-
-    notes = await load_notes(
-        cfg.notes_dir, cfg.notes_sync_state_path, state.file_interpreter
-    )
-    logger.info("notes_loaded", count=len(notes))
-
-    bookmarks = load_bookmarks(
-        cfg.bookmarks_profile_path,
-        cfg.bookmarks_sync_state_path,
-        cfg.bookmarks_fetch_timeout,
-        cfg.bookmarks_max_content_length,
-    )
-    logger.info("bookmarks_found", count=len(bookmarks))
-
-    docs = notes + bookmarks
-    await pipeline.add_docs(docs)
-
-    return ReindexResponse(notes_indexed=len(notes), bookmarks_indexed=len(bookmarks))
+    if _reindex_task is not None and not _reindex_task.done():
+        raise HTTPException(status_code=409, detail="Reindex already in progress")
+    _reindex_task = asyncio.create_task(_run_reindex(pipeline, cfg, state))
+    return {"status": "started"}
