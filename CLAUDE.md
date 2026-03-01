@@ -82,7 +82,7 @@ src/
 ### Data Flow
 
 1. **Loaders** (`src/lexora/knowledge/loaders/`) read source data and produce `Document` objects.
-   - `notes.py`: Async loader. Traverses `data/notes/` recursively via `rglob`. Supports `.txt` (read directly), `.md` (converted to plain text via mistune), and `.pdf` (delegated to `FileInterpreter`). PDF files are skipped with a warning when no interpreter is available. Incremental sync via `data/notes_sync.json`.
+   - `notes.py`: Async loader. Traverses `data/notes/` recursively via `rglob`. Supports `.txt` (read directly), `.md` (converted to plain text via mistune), and `.pdf`, `.docx`, `.xlsx`, `.png`, `.jpg`, `.jpeg` (all delegated to `FileInterpreter`). Interpreter-handled files are skipped with a warning when no interpreter is available. Incremental sync via `data/notes_sync.json`.
    - `bookmarks.py`: Reads Firefox's `places.sqlite`, fetches each URL's content via `trafilatura`, and produces documents. Incremental sync via `data/bm_sync.json`. The DB is copied to a temp file before reading to avoid lock conflicts with Firefox.
    - `sync_state.py`: Shared helper that persists a `last_sync_timestamp` to a JSON file for both loaders.
 

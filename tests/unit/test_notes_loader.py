@@ -265,6 +265,162 @@ class TestLoadNotesPdf:
         assert docs[0].source == str(pdf_path)
 
 
+class TestLoadNotesDocx:
+    """Tests for .docx file loading via FileInterpreter."""
+
+    def test_docx_loaded_via_interpreter(self, tmp_path: Path):
+        """A .docx file should be passed to the interpreter and its text returned."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        docx_bytes = b"PK fake docx"
+        (notes_dir / "doc.docx").write_bytes(docx_bytes)
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("extracted docx text")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].content == "extracted docx text"
+        assert docs[0].source.endswith(".docx")
+
+    def test_docx_skipped_when_no_interpreter(self, tmp_path: Path):
+        """DOCX files should be skipped (not error) when interpreter is None."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        (notes_dir / "doc.docx").write_bytes(b"PK fake docx")
+        (notes_dir / "note.txt").write_text("hello")
+        state = tmp_path / "state.json"
+
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=None)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].source.endswith(".txt")
+
+    def test_docx_source_path_set_correctly(self, tmp_path: Path):
+        """Document source for a .docx should point to the .docx file path."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        docx_path = notes_dir / "report.docx"
+        docx_path.write_bytes(b"PK fake docx")
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("text")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert docs[0].source == str(docx_path)
+
+
+class TestLoadNotesXlsx:
+    """Tests for .xlsx file loading via FileInterpreter."""
+
+    def test_xlsx_loaded_via_interpreter(self, tmp_path: Path):
+        """A .xlsx file should be passed to the interpreter and its text returned."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        xlsx_bytes = b"PK fake xlsx"
+        (notes_dir / "data.xlsx").write_bytes(xlsx_bytes)
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("extracted xlsx text")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].content == "extracted xlsx text"
+        assert docs[0].source.endswith(".xlsx")
+
+    def test_xlsx_skipped_when_no_interpreter(self, tmp_path: Path):
+        """XLSX files should be skipped (not error) when interpreter is None."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        (notes_dir / "data.xlsx").write_bytes(b"PK fake xlsx")
+        (notes_dir / "note.txt").write_text("hello")
+        state = tmp_path / "state.json"
+
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=None)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].source.endswith(".txt")
+
+    def test_xlsx_source_path_set_correctly(self, tmp_path: Path):
+        """Document source for a .xlsx should point to the .xlsx file path."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        xlsx_path = notes_dir / "sheet.xlsx"
+        xlsx_path.write_bytes(b"PK fake xlsx")
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("text")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert docs[0].source == str(xlsx_path)
+
+
+class TestLoadNotesImages:
+    """Tests for .png, .jpg, .jpeg file loading via FileInterpreter."""
+
+    @pytest.mark.parametrize("ext", [".png", ".jpg", ".jpeg"])
+    def test_image_loaded_via_interpreter(self, tmp_path: Path, ext: str):
+        """An image file should be passed to the interpreter and its text returned."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        img_bytes = b"\x89PNG fake image"
+        img_path = notes_dir / f"photo{ext}"
+        img_path.write_bytes(img_bytes)
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("described image content")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].content == "described image content"
+        assert docs[0].source.endswith(ext)
+
+    def test_image_skipped_when_no_interpreter(self, tmp_path: Path):
+        """Image files should be skipped (not error) when interpreter is None."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        (notes_dir / "photo.png").write_bytes(b"\x89PNG fake image")
+        (notes_dir / "note.txt").write_text("hello")
+        state = tmp_path / "state.json"
+
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=None)
+        )
+
+        assert len(docs) == 1
+        assert docs[0].source.endswith(".txt")
+
+    @pytest.mark.parametrize("ext", [".png", ".jpg", ".jpeg"])
+    def test_image_source_path_set_correctly(self, tmp_path: Path, ext: str):
+        """Document source for an image should point to the image file path."""
+        notes_dir = tmp_path / "notes"
+        notes_dir.mkdir()
+        img_path = notes_dir / f"photo{ext}"
+        img_path.write_bytes(b"\x89PNG fake image")
+        state = tmp_path / "state.json"
+
+        interpreter = FakeFileInterpreter("text")
+        docs = asyncio.run(
+            load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
+        )
+
+        assert docs[0].source == str(img_path)
+
+
 class TestLoadNotesSubdirectories:
     """Tests for recursive directory traversal."""
 
@@ -302,14 +458,14 @@ class TestLoadNotesSubdirectories:
         sub = notes_dir / "sub"
         sub.mkdir()
         (sub / "b.md").write_text("# MD")
-        pdf_bytes = b"pdf"
-        (sub / "c.pdf").write_bytes(pdf_bytes)
+        (sub / "c.pdf").write_bytes(b"pdf")
+        (sub / "d.docx").write_bytes(b"PK fake docx")
         state = tmp_path / "state.json"
 
-        interpreter = FakeFileInterpreter("pdf text")
+        interpreter = FakeFileInterpreter("interpreted text")
         docs = asyncio.run(
             load_notes(notes_dir, sync_state_path=state, interpreter=interpreter)
         )
-        assert len(docs) == 3
+        assert len(docs) == 4
         suffixes = {Path(d.source).suffix for d in docs}
-        assert suffixes == {".txt", ".md", ".pdf"}
+        assert suffixes == {".txt", ".md", ".pdf", ".docx"}

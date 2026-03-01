@@ -17,8 +17,28 @@ _PDF_SYSTEM_PROMPT = (
     "Extract and summarise all meaningful content from this PDF. "
     "Return plain text only, preserving all key information, facts, and ideas."
 )
+_WORD_SYSTEM_PROMPT = (
+    "Extract all text content from this Word document. "
+    "Return plain text preserving all key information, headings, paragraphs, and lists."
+)
+_EXCEL_SYSTEM_PROMPT = (
+    "Extract all data from this Excel spreadsheet. "
+    "Return the content as plain text, representing each sheet, row, and cell value clearly."
+)
+_IMAGE_SYSTEM_PROMPT = (
+    "Describe all meaningful content visible in this image. "
+    "Include any text, data, diagrams, or key visual information as plain text."
+)
 
-_SUPPORTED_SUFFIXES = {".txt", ".md", ".pdf"}
+_INTERPRETER_PROMPTS: dict[str, str] = {
+    ".pdf": _PDF_SYSTEM_PROMPT,
+    ".docx": _WORD_SYSTEM_PROMPT,
+    ".xlsx": _EXCEL_SYSTEM_PROMPT,
+    ".png": _IMAGE_SYSTEM_PROMPT,
+    ".jpg": _IMAGE_SYSTEM_PROMPT,
+    ".jpeg": _IMAGE_SYSTEM_PROMPT,
+}
+_SUPPORTED_SUFFIXES = {".txt", ".md"} | set(_INTERPRETER_PROMPTS)
 
 _md_parser = mistune.create_markdown()
 
@@ -36,7 +56,7 @@ async def load_notes(
     sync_state_path: str | Path = "data/notes_sync.json",
     interpreter: FileInterpreter | None = None,
 ) -> list[Document]:
-    """Load new or modified .txt, .md, and .pdf files from a directory tree.
+    """Load new or modified .txt, .md, .pdf, .docx, .xlsx, .png, .jpg, .jpeg files from a directory tree.
 
     Traverses the directory and all subdirectories. On first run, loads all
     supported files. On subsequent runs, only loads files whose modification
@@ -45,8 +65,8 @@ async def load_notes(
     Args:
         directory: Root directory to search.
         sync_state_path: Path to the sync state JSON file.
-        interpreter: Optional FileInterpreter for PDF files. PDF files are
-            skipped with a warning when interpreter is None.
+        interpreter: Optional FileInterpreter for PDF, Word, Excel, and image files.
+            These files are skipped with a warning when interpreter is None.
 
     Returns:
         List of Document objects for new or modified files.
@@ -79,14 +99,14 @@ async def load_notes(
         elif suffix == ".md":
             plain = _md_to_plain(file_path.read_text())
             documents.append(Document(content=plain, source=str(file_path)))
-        elif suffix == ".pdf":
+        elif suffix in _INTERPRETER_PROMPTS:
             if interpreter is None:
-                logger.warning("pdf_skipped_no_interpreter", path=str(file_path))
+                logger.warning("file_skipped_no_interpreter", path=str(file_path))
                 continue
             text = await interpreter.interpret(
                 file_bytes=file_path.read_bytes(),
                 filename=file_path.name,
-                system_prompt=_PDF_SYSTEM_PROMPT,
+                system_prompt=_INTERPRETER_PROMPTS[suffix],
             )
             documents.append(Document(content=text, source=str(file_path)))
 

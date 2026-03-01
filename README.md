@@ -63,7 +63,7 @@ Settings can also be changed at runtime via the **Settings** page in the web UI,
 
 | Source | Supported formats | Default path |
 |---|---|---|
-| Notes | `.txt`, `.md`, `.pdf` (recursive) | `data/notes/` |
+| Notes | `.txt`, `.md`, `.pdf`, `.docx`, `.xlsx`, `.png`, `.jpg`, `.jpeg` (recursive) | `data/notes/` |
 | Firefox bookmarks | page content via trafilatura | auto-detected, or set `BOOKMARKS_PROFILE_PATH` |
 | RSS/Atom feeds | managed via UI or `PUT /api/v1/rss` | stored in `data/feeds.yaml` |
 
