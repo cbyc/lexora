@@ -51,13 +51,17 @@ FEED_FETCH_TIMEOUT_SEC=10
 FEED_DEFAULT_RANGE=last_month
 ```
 
+Settings can also be changed at runtime via the **Settings** page in the web UI, which persists updates to `.env`. A server restart is required for changes to take effect.
+
 ## Data sources
 
-| Source | Default path |
-|---|---|
-| Plain-text notes | `data/notes/*.txt` |
-| Firefox profile | auto-detected, or set `BOOKMARKS_PROFILE_PATH` |
-| RSS/Atom feeds | managed via `PUT /api/v1/rss`; stored in `data/feeds.yaml` |
+| Source | Supported formats | Default path |
+|---|---|---|
+| Notes | `.txt`, `.md`, `.pdf` (recursive) | `data/notes/` |
+| Firefox bookmarks | page content via trafilatura | auto-detected, or set `BOOKMARKS_PROFILE_PATH` |
+| RSS/Atom feeds | managed via UI or `PUT /api/v1/rss` | stored in `data/feeds.yaml` |
+
+The notes loader traverses subdirectories. Markdown files are converted to plain text; PDF files are extracted via the Gemini multimodal API (requires `GOOGLE_API_KEY`). PDFs are skipped with a warning when the API key is not configured.
 
 Incremental sync state is persisted to `data/notes_sync.json` and `data/bm_sync.json`. Delete these files to force a full reindex.
 
@@ -75,15 +79,17 @@ The server starts on port `9002` by default and serves the web frontend at `/`.
 
 #### `POST /api/v1/reindex`
 
-Loads notes and bookmarks, chunks and embeds them, and upserts into the vector store.
+Starts a background reindex of notes and bookmarks (chunking, embedding, upsert into the vector store). Returns immediately — the reindex continues even if the client disconnects.
 
 ```bash
 curl -X POST http://localhost:9002/api/v1/reindex
 ```
 
 ```json
-{"notes_indexed": 4, "bookmarks_indexed": 12}
+{"status": "started"}
 ```
+
+Returns `202 Accepted` on success. Returns `409 Conflict` if a reindex is already running. Returns `503` if `GOOGLE_API_KEY` is not configured.
 
 #### `POST /api/v1/query`
 
@@ -127,6 +133,58 @@ If the context does not contain a relevant answer:
 ```
 
 `question` must be between 1 and 1024 characters.
+
+#### `GET /api/v1/capabilities`
+
+Reports which optional features are active.
+
+```bash
+curl http://localhost:9002/api/v1/capabilities
+```
+
+```json
+{"mind_enabled": true, "feed_enabled": true}
+```
+
+`mind_enabled` is `false` when `GOOGLE_API_KEY` is not set.
+
+### Settings
+
+#### `GET /api/v1/settings`
+
+Returns the current runtime configuration.
+
+```bash
+curl http://localhost:9002/api/v1/settings
+```
+
+```json
+{
+  "google_api_key_set": true,
+  "notes_dir": "./data/notes",
+  "bookmarks_profile_path": null
+}
+```
+
+#### `PUT /api/v1/settings`
+
+Persists non-empty fields to the `.env` file. A server restart is required for changes to take effect.
+
+```bash
+curl -X PUT http://localhost:9002/api/v1/settings \
+  -H "Content-Type: application/json" \
+  -d '{"notes_dir": "/home/user/notes"}'
+```
+
+```json
+{"saved": true, "restart_required": true}
+```
+
+Only the fields you supply are written; omitted or empty fields are left unchanged.
+
+#### `POST /api/v1/settings/browse-directory`
+
+Opens a native macOS folder picker and returns the chosen path. Returns `{"path": null}` on non-macOS platforms or if the dialog is cancelled.
 
 ### Feed Reader
 
@@ -182,4 +240,8 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-The vector store runs in-memory by default — data is lost on restart. Call `/api/v1/reindex` each time the server starts, or set `CHROMA_PATH` to a directory for persistent local storage.
+The vector store runs in-memory by default — data is lost on restart. Call `POST /api/v1/reindex` each time the server starts (or use the Reindex button in Settings), or set `CHROMA_PATH` to a directory for persistent local storage.
+
+## License
+
+MIT — see [LICENSE.txt](LICENSE.txt).
