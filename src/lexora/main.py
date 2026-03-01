@@ -109,8 +109,23 @@ app.mount(
 )
 
 
+def _ensure_config_dirs(s: Settings) -> None:
+    """Create required config directories if they don't exist."""
+    dirs = [
+        Path(s.notes_dir),
+        Path(s.notes_sync_state_path).parent,
+        Path(s.bookmarks_sync_state_path).parent,
+        Path(s.feed_data_file).parent,
+    ]
+    if s.chroma_path:
+        dirs.append(Path(s.chroma_path))
+    for d in dirs:
+        d.mkdir(parents=True, exist_ok=True)
+
+
 def serve() -> None:
     """Entry point invoked by `lexora` CLI command."""
+    _ensure_config_dirs(settings)
     uvicorn.run(app, host=settings.host, port=settings.port)
 
 
