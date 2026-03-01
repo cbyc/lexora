@@ -166,21 +166,21 @@ Stored on `app.state.app_state` at startup.
 | `GOOGLE_API_KEY` | _(none)_ | **Required.** Used for Gemini embeddings and PDF extraction. |
 | `GEMINI_EMBEDDING_MODEL` | `models/text-embedding-004` | Gemini embedding model ID |
 | `EMBEDDING_DIMENSION` | `768` | Embedding vector size |
-| `CHROMA_PATH` | _(none)_ | ChromaDB persistence directory; omit to use in-memory mode |
+| `CHROMA_PATH` | `~/.config/lexora/chroma` | ChromaDB persistence directory; set to empty to use in-memory mode |
 | `CHROMA_COLLECTION` | `lexora` | ChromaDB collection name |
 | `CHUNK_SIZE` | `500` | Characters per chunk |
 | `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `NOTES_DIR` | `./data/notes` | Root directory for `.txt`, `.md`, `.pdf` notes (recursive) |
-| `NOTES_SYNC_STATE_PATH` | `./data/notes_sync.json` | Notes incremental sync state |
+| `NOTES_DIR` | `~/.config/lexora/notes` | Root directory for `.txt`, `.md`, `.pdf` notes (recursive) |
+| `NOTES_SYNC_STATE_PATH` | `~/.config/lexora/notes_sync.json` | Notes incremental sync state |
 | `BOOKMARKS_PROFILE_PATH` | _(none)_ | Firefox profile path; omit to auto-detect |
-| `BOOKMARKS_SYNC_STATE_PATH` | `./data/bm_sync.json` | Bookmarks incremental sync state |
+| `BOOKMARKS_SYNC_STATE_PATH` | `~/.config/lexora/bookmarks_sync.json` | Bookmarks incremental sync state |
 | `BOOKMARKS_FETCH_TIMEOUT` | `15` | HTTP timeout per bookmark (seconds) |
 | `BOOKMARKS_MAX_CONTENT_LENGTH` | `50000` | Max characters extracted per page |
 | `LLM_MODEL` | `google-gla:gemini-2.0-flash` | pydantic-ai model string for `/ask` |
-| `FEED_DATA_FILE` | `./data/feeds.yaml` | YAML file storing feed URLs |
+| `FEED_DATA_FILE` | `~/.config/lexora/feeds.yaml` | YAML file storing feed URLs |
 | `FEED_MAX_POSTS_PER_FEED` | `50` | Max posts fetched per feed |
 | `FEED_FETCH_TIMEOUT_SEC` | `10` | Per-feed fetch timeout (seconds) |
-| `FEED_DEFAULT_RANGE` | `last_month` | Default date range for feed queries |
+| `FEED_DEFAULT_RANGE` | `last_week` | Default date range for feed queries |
 
 ### Import Convention
 

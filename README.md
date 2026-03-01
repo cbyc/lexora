@@ -32,14 +32,14 @@ GEMINI_EMBEDDING_MODEL=models/text-embedding-004
 EMBEDDING_DIMENSION=768
 
 # Vector store — omit CHROMA_PATH to use ephemeral in-memory mode
-CHROMA_PATH=./data/chroma
+CHROMA_PATH=~/.config/lexora/chroma
 CHROMA_COLLECTION=lexora
 
 # Knowledge sources
-NOTES_DIR=./data/notes
-NOTES_SYNC_STATE_PATH=./data/notes_sync.json
+NOTES_DIR=~/.config/lexora/notes
+NOTES_SYNC_STATE_PATH=~/.config/lexora/notes_sync.json
 BOOKMARKS_PROFILE_PATH=               # leave empty to auto-detect Firefox profile
-BOOKMARKS_SYNC_STATE_PATH=./data/bm_sync.json
+BOOKMARKS_SYNC_STATE_PATH=~/.config/lexora/bookmarks_sync.json
 BOOKMARKS_FETCH_TIMEOUT=15
 BOOKMARKS_MAX_CONTENT_LENGTH=50000
 
@@ -51,10 +51,10 @@ CHUNK_OVERLAP=50
 LLM_MODEL=google-gla:gemini-2.0-flash
 
 # Feed reader
-FEED_DATA_FILE=./data/feeds.yaml
+FEED_DATA_FILE=~/.config/lexora/feeds.yaml
 FEED_MAX_POSTS_PER_FEED=50
 FEED_FETCH_TIMEOUT_SEC=10
-FEED_DEFAULT_RANGE=last_month
+FEED_DEFAULT_RANGE=last_week
 ```
 
 Settings can also be changed at runtime via the **Settings** page in the web UI, which persists updates to `.env`. A server restart is required for changes to take effect.
