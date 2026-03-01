@@ -7,20 +7,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api import app
-from app_state import AppState
-from config import Settings
-from feed.models import DuplicateFeedError, Feed, FeedError, Post
-from feed.service import FeedResult
-from knowledge.loaders.models import Document
-from models import NOT_FOUND, AskResponse, Chunk
-from routers.knowledge import _run_reindex
-from routers.capabilities import get_app_state as capabilities_get_app_state
-from routers.feed import get_app_state as feed_get_app_state
-from routers.knowledge import get_app_state as knowledge_get_app_state
-from routers.knowledge import get_settings
-from routers.settings import get_env_file
-from routers.settings import get_settings as settings_get_settings
+from lexora.main import app
+from lexora.app_state import AppState
+from lexora.config import Settings
+from lexora.feed.models import DuplicateFeedError, Feed, FeedError, Post
+from lexora.feed.service import FeedResult
+from lexora.knowledge.loaders.models import Document
+from lexora.models import NOT_FOUND, AskResponse, Chunk
+from lexora.routers.knowledge import _run_reindex
+from lexora.routers.capabilities import get_app_state as capabilities_get_app_state
+from lexora.routers.feed import get_app_state as feed_get_app_state
+from lexora.routers.knowledge import get_app_state as knowledge_get_app_state
+from lexora.routers.knowledge import get_settings
+from lexora.routers.settings import get_env_file
+from lexora.routers.settings import get_settings as settings_get_settings
 
 
 class FakePipeline:
@@ -154,7 +154,7 @@ class TestReindexEndpoint:
 
     @pytest.fixture(autouse=True)
     def reset_reindex_task(self):
-        import routers.knowledge as rk
+        import lexora.routers.knowledge as rk
 
         rk._reindex_task = None
         yield
@@ -176,7 +176,7 @@ class TestReindexEndpoint:
 
     def test_returns_409_when_reindex_already_running(self, client):
         """POST /reindex returns 409 when a reindex task is already in progress."""
-        import routers.knowledge as rk
+        import lexora.routers.knowledge as rk
 
         app.dependency_overrides[knowledge_get_app_state] = lambda: make_app_state()
         rk._reindex_task = MagicMock(done=lambda: False)
@@ -201,8 +201,11 @@ class TestRunReindex:
         note = Document(content="note content", source="note.txt")
         bookmark = Document(content="page content", source="https://example.com")
         with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[note])),
-            patch("routers.knowledge.load_bookmarks", return_value=[bookmark]),
+            patch(
+                "lexora.routers.knowledge.load_notes",
+                new=AsyncMock(return_value=[note]),
+            ),
+            patch("lexora.routers.knowledge.load_bookmarks", return_value=[bookmark]),
         ):
             await _run_reindex(fake_pipeline, cfg, state)
         assert fake_pipeline.add_docs_calls[0] == [note, bookmark]
@@ -214,8 +217,10 @@ class TestRunReindex:
         state = make_app_state(pipeline=fake_pipeline)
         cfg = Settings()
         with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
-            patch("routers.knowledge.load_bookmarks", return_value=[]),
+            patch(
+                "lexora.routers.knowledge.load_notes", new=AsyncMock(return_value=[])
+            ),
+            patch("lexora.routers.knowledge.load_bookmarks", return_value=[]),
         ):
             await _run_reindex(fake_pipeline, cfg, state)
         assert len(fake_pipeline.add_docs_calls) == 1
@@ -349,10 +354,10 @@ class TestLifespan:
         fake_settings = MagicMock()
         fake_settings.google_api_key = None
         with (
-            patch("api.settings", fake_settings),
-            patch("api.YamlFeedStore"),
-            patch("api.HttpFeedFetcher"),
-            patch("api.FeedService"),
+            patch("lexora.main.settings", fake_settings),
+            patch("lexora.main.YamlFeedStore"),
+            patch("lexora.main.HttpFeedFetcher"),
+            patch("lexora.main.FeedService"),
         ):
             with TestClient(app):
                 assert app.state.app_state.pipeline is None
@@ -363,14 +368,14 @@ class TestLifespan:
         fake_settings.google_api_key = "test-key"
         fake_settings.chroma_path = None
         with (
-            patch("api.settings", fake_settings),
-            patch("api.GeminiEmbeddingModel"),
-            patch("api.VectorStore") as mock_vs,
-            patch("api.PydanticAIAskAgent"),
-            patch("api.Pipeline"),
-            patch("api.YamlFeedStore"),
-            patch("api.HttpFeedFetcher"),
-            patch("api.FeedService"),
+            patch("lexora.main.settings", fake_settings),
+            patch("lexora.main.GeminiEmbeddingModel"),
+            patch("lexora.main.VectorStore") as mock_vs,
+            patch("lexora.main.PydanticAIAskAgent"),
+            patch("lexora.main.Pipeline"),
+            patch("lexora.main.YamlFeedStore"),
+            patch("lexora.main.HttpFeedFetcher"),
+            patch("lexora.main.FeedService"),
         ):
             with TestClient(app):
                 pass
@@ -383,14 +388,14 @@ class TestLifespan:
         fake_settings.google_api_key = "test-key"
         fake_settings.chroma_path = "/data/chroma"
         with (
-            patch("api.settings", fake_settings),
-            patch("api.GeminiEmbeddingModel"),
-            patch("api.VectorStore") as mock_vs,
-            patch("api.PydanticAIAskAgent"),
-            patch("api.Pipeline"),
-            patch("api.YamlFeedStore"),
-            patch("api.HttpFeedFetcher"),
-            patch("api.FeedService"),
+            patch("lexora.main.settings", fake_settings),
+            patch("lexora.main.GeminiEmbeddingModel"),
+            patch("lexora.main.VectorStore") as mock_vs,
+            patch("lexora.main.PydanticAIAskAgent"),
+            patch("lexora.main.Pipeline"),
+            patch("lexora.main.YamlFeedStore"),
+            patch("lexora.main.HttpFeedFetcher"),
+            patch("lexora.main.FeedService"),
         ):
             with TestClient(app):
                 pass
@@ -408,14 +413,14 @@ class TestLifespan:
         fake_settings = MagicMock()
         fake_settings.google_api_key = "test-key"
         with (
-            patch("api.settings", fake_settings),
-            patch("api.GeminiEmbeddingModel"),
-            patch("api.VectorStore"),
-            patch("api.PydanticAIAskAgent"),
-            patch("api.Pipeline", return_value=fake_pipeline),
-            patch("api.YamlFeedStore"),
-            patch("api.HttpFeedFetcher"),
-            patch("api.FeedService", return_value=fake_feed_service),
+            patch("lexora.main.settings", fake_settings),
+            patch("lexora.main.GeminiEmbeddingModel"),
+            patch("lexora.main.VectorStore"),
+            patch("lexora.main.PydanticAIAskAgent"),
+            patch("lexora.main.Pipeline", return_value=fake_pipeline),
+            patch("lexora.main.YamlFeedStore"),
+            patch("lexora.main.HttpFeedFetcher"),
+            patch("lexora.main.FeedService", return_value=fake_feed_service),
         ):
             with TestClient(app):
                 state = app.state.app_state
@@ -430,14 +435,14 @@ class TestLifespan:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
             with (
-                patch("api.settings", fake_settings),
-                patch("api.GeminiEmbeddingModel"),
-                patch("api.VectorStore"),
-                patch("api.PydanticAIAskAgent"),
-                patch("api.Pipeline"),
-                patch("api.YamlFeedStore"),
-                patch("api.HttpFeedFetcher"),
-                patch("api.FeedService"),
+                patch("lexora.main.settings", fake_settings),
+                patch("lexora.main.GeminiEmbeddingModel"),
+                patch("lexora.main.VectorStore"),
+                patch("lexora.main.PydanticAIAskAgent"),
+                patch("lexora.main.Pipeline"),
+                patch("lexora.main.YamlFeedStore"),
+                patch("lexora.main.HttpFeedFetcher"),
+                patch("lexora.main.FeedService"),
             ):
                 with TestClient(app):
                     pass
@@ -464,8 +469,10 @@ class TestKnowledgeEndpointsWhenPipelineDisabled:
         """POST /reindex returns 503 when pipeline is disabled."""
         app.dependency_overrides[get_settings] = lambda: Settings()
         with (
-            patch("routers.knowledge.load_notes", new=AsyncMock(return_value=[])),
-            patch("routers.knowledge.load_bookmarks", return_value=[]),
+            patch(
+                "lexora.routers.knowledge.load_notes", new=AsyncMock(return_value=[])
+            ),
+            patch("lexora.routers.knowledge.load_bookmarks", return_value=[]),
         ):
             response = client.post("/api/v1/reindex")
         assert response.status_code == 503
@@ -682,8 +689,8 @@ class TestBrowseDirectoryEndpoint:
     def test_returns_200(self, client):
         """POST /api/v1/settings/browse-directory returns HTTP 200."""
         with (
-            patch("routers.settings.sys") as mock_sys,
-            patch("routers.settings.subprocess.run") as mock_run,
+            patch("lexora.routers.settings.sys") as mock_sys,
+            patch("lexora.routers.settings.subprocess.run") as mock_run,
         ):
             mock_sys.platform = "darwin"
             mock_run.return_value = MagicMock(returncode=0, stdout="/sel/path\n")
@@ -693,8 +700,8 @@ class TestBrowseDirectoryEndpoint:
     def test_returns_path_when_osascript_succeeds(self, client):
         """Returns the selected path (stripped) when osascript exits 0."""
         with (
-            patch("routers.settings.sys") as mock_sys,
-            patch("routers.settings.subprocess.run") as mock_run,
+            patch("lexora.routers.settings.sys") as mock_sys,
+            patch("lexora.routers.settings.subprocess.run") as mock_run,
         ):
             mock_sys.platform = "darwin"
             mock_run.return_value = MagicMock(returncode=0, stdout="/Users/me/notes\n")
@@ -704,8 +711,8 @@ class TestBrowseDirectoryEndpoint:
     def test_returns_null_when_user_cancels(self, client):
         """Returns null when osascript exits non-zero (user cancelled)."""
         with (
-            patch("routers.settings.sys") as mock_sys,
-            patch("routers.settings.subprocess.run") as mock_run,
+            patch("lexora.routers.settings.sys") as mock_sys,
+            patch("lexora.routers.settings.subprocess.run") as mock_run,
         ):
             mock_sys.platform = "darwin"
             mock_run.return_value = MagicMock(returncode=1, stdout="")
@@ -715,8 +722,8 @@ class TestBrowseDirectoryEndpoint:
     def test_returns_null_on_non_macos(self, client):
         """Returns null without calling subprocess on non-macOS platforms."""
         with (
-            patch("routers.settings.sys") as mock_sys,
-            patch("routers.settings.subprocess.run") as mock_run,
+            patch("lexora.routers.settings.sys") as mock_sys,
+            patch("lexora.routers.settings.subprocess.run") as mock_run,
         ):
             mock_sys.platform = "linux"
             body = client.post("/api/v1/settings/browse-directory").json()

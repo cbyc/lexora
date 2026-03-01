@@ -1,6 +1,6 @@
 """Tests for SimpleChunker."""
 
-from knowledge.chunker import SimpleChunker
+from lexora.knowledge.chunker import SimpleChunker
 
 
 class TestSimpleChunker:

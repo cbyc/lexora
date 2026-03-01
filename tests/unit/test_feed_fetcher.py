@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from feed.fetcher import HttpFeedFetcher
-from feed.models import Feed
+from lexora.feed.fetcher import HttpFeedFetcher
+from lexora.feed.models import Feed
 
 SAMPLE_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">

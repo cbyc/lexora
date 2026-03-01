@@ -2,9 +2,9 @@
 
 import asyncio
 
-from knowledge.loaders.models import Document
-from models import NOT_FOUND, AskResponse, Chunk
-from knowledge.pipeline import Pipeline
+from lexora.knowledge.loaders.models import Document
+from lexora.models import NOT_FOUND, AskResponse, Chunk
+from lexora.knowledge.pipeline import Pipeline
 
 DIM = 768
 

@@ -8,23 +8,25 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app_state import AppState
-from config import Settings
-from feed.fetcher import HttpFeedFetcher
-from feed.service import FeedService
-from feed.store import YamlFeedStore
-from knowledge.ask_agent import PydanticAIAskAgent
-from knowledge.chunker import SimpleChunker
-from knowledge.embedder import GeminiEmbeddingModel
-from knowledge.file_interpreter import GeminiFileInterpreter
-from knowledge.pipeline import Pipeline
-from knowledge.vector_store import VectorStore
-from routers import capabilities, feed, knowledge, settings as settings_mod
+from lexora.app_state import AppState
+from lexora.config import Settings
+from lexora.feed.fetcher import HttpFeedFetcher
+from lexora.feed.service import FeedService
+from lexora.feed.store import YamlFeedStore
+from lexora.knowledge.ask_agent import PydanticAIAskAgent
+from lexora.knowledge.chunker import SimpleChunker
+from lexora.knowledge.embedder import GeminiEmbeddingModel
+from lexora.knowledge.file_interpreter import GeminiFileInterpreter
+from lexora.knowledge.pipeline import Pipeline
+from lexora.knowledge.vector_store import VectorStore
+from lexora.routers import capabilities, feed, knowledge, settings as settings_mod
 
 settings = Settings()
 
 logging.basicConfig(level=settings.log_level.upper())
 logger = structlog.get_logger(__name__)
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -102,10 +104,15 @@ app.include_router(feed.router)
 app.include_router(settings_mod.router)
 app.mount(
     "/",
-    StaticFiles(directory=Path(__file__).parent / "static", html=True),
+    StaticFiles(directory=_STATIC_DIR, html=True),
     name="static",
 )
 
 
-if __name__ == "__main__":
+def serve() -> None:
+    """Entry point invoked by `lexora` CLI command."""
     uvicorn.run(app, host=settings.host, port=settings.port)
+
+
+if __name__ == "__main__":
+    serve()

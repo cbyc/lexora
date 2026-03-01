@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from feed.date_range import parse_date_range
+from lexora.feed.date_range import parse_date_range
 
 
 class TestParseDateRange:

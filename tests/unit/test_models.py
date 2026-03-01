@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from models import NOT_FOUND, AskResponse
+from lexora.models import NOT_FOUND, AskResponse
 
 
 class TestAskResponse:

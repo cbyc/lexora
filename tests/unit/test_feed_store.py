@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from feed.models import DuplicateFeedError, Feed
-from feed.store import YamlFeedStore
+from lexora.feed.models import DuplicateFeedError, Feed
+from lexora.feed.store import YamlFeedStore
 
 
 class TestYamlFeedStore:

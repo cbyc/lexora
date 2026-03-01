@@ -1,8 +1,14 @@
-# Lexora-Link
+# Lexora
 
 A personal knowledge and feed aggregation server. Ingests documents from local notes and Firefox bookmarks, embeds them into a vector store, and exposes semantic search, LLM-powered question answering, and an RSS feed reader — all served from a single process including a web frontend.
 
-## Setup
+## Installation
+
+```bash
+pipx install git+https://github.com/cbyc/lexora.git
+```
+
+## Development
 
 Requires Python 3.13+ and [`uv`](https://docs.astral.sh/uv/).
 
@@ -68,7 +74,11 @@ Incremental sync state is persisted to `data/notes_sync.json` and `data/bm_sync.
 ## Running
 
 ```bash
-uv run python api.py
+# If installed via pipx
+lexora
+
+# From source (contributors)
+uv run lexora
 ```
 
 The server starts on port `9002` by default and serves the web frontend at `/`.

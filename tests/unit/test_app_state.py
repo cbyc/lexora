@@ -1,6 +1,6 @@
 """Tests for AppState NamedTuple."""
 
-from app_state import AppState
+from lexora.app_state import AppState
 
 
 class TestAppState:

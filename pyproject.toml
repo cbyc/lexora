@@ -1,16 +1,14 @@
 [project]
-name = "lexora-link"
+name = "lexora"
 version = "0.1.0"
-description = "Add your description here"
+description = "Personal knowledge and feed aggregation server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.133.0",
     "pydantic-ai>=1.63.0",
     "pydantic-settings>=2.13.1",
-    "pytest>=9.0.2",
     "chromadb>=0.6.0",
-    "ruff>=0.15.2",
     "structlog>=25.5.0",
     "trafilatura>=2.0.0",
     "uvicorn>=0.41.0",
@@ -20,33 +18,39 @@ dependencies = [
     "httpx>=0.28.1",
     "aiofiles>=25.1.0",
     "mistune>=3.0.2",
-    "coverage>=7.13.4",
-    "pytest-cov>=7.0.0",
-    "mutmut>=3.5.0",
 ]
+
+[project.scripts]
+lexora = "lexora.main:serve"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build]
-dev-mode-dirs = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/lexora"]
 
 [tool.pytest.ini_options]
-pythonpath = [".", "src"]
+pythonpath = ["src"]
 testpaths = ["tests/unit"]
 markers = ["evals: requires a live LLM API key; run with pytest tests/evals/"]
 
 [dependency-groups]
 dev = [
     "pydantic-ai[evals]>=1.63.0",
+    "pytest>=9.0.2",
+    "ruff>=0.15.2",
+    "coverage>=7.13.4",
+    "pytest-cov>=7.0.0",
+    "mutmut>=3.5.0",
+    "anyio[trio]>=4.0.0",
 ]
 
 [tool.ruff]
 exclude = ["mutants/"]
 
 [tool.mutmut]
-paths_to_mutate = ["src/"]
+paths_to_mutate = ["src/lexora/"]
 tests_dir = ["tests/unit/"]
 runner = ["pytest"]
-also_copy = [ "api.py", "static" ]
+also_copy = ["static"]

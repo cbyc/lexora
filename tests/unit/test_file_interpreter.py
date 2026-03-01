@@ -3,13 +3,13 @@
 import asyncio
 from unittest.mock import MagicMock, patch
 
-from knowledge.file_interpreter import GeminiFileInterpreter
+from lexora.knowledge.file_interpreter import GeminiFileInterpreter
 
 
 class TestGeminiFileInterpreter:
     def test_init_creates_genai_client(self):
         """Constructor should create a genai.Client with the given api_key."""
-        with patch("knowledge.file_interpreter.genai.Client") as mock_cls:
+        with patch("lexora.knowledge.file_interpreter.genai.Client") as mock_cls:
             GeminiFileInterpreter(model="gemini-2.0-flash", api_key="test-key")
         mock_cls.assert_called_once_with(api_key="test-key")
 
@@ -18,7 +18,7 @@ class TestGeminiFileInterpreter:
         mock_response = MagicMock()
         mock_response.text = "Extracted text from PDF."
 
-        with patch("knowledge.file_interpreter.genai.Client") as mock_cls:
+        with patch("lexora.knowledge.file_interpreter.genai.Client") as mock_cls:
             mock_cls.return_value.models.generate_content.return_value = mock_response
             interpreter = GeminiFileInterpreter(model="gemini-2.0-flash", api_key="key")
             result = asyncio.run(
@@ -36,7 +36,7 @@ class TestGeminiFileInterpreter:
         mock_response = MagicMock()
         mock_response.text = "some text"
 
-        with patch("knowledge.file_interpreter.genai.Client") as mock_cls:
+        with patch("lexora.knowledge.file_interpreter.genai.Client") as mock_cls:
             mock_generate = mock_cls.return_value.models.generate_content
             mock_generate.return_value = mock_response
             interpreter = GeminiFileInterpreter(model="gemini-2.0-flash", api_key="key")
@@ -56,7 +56,7 @@ class TestGeminiFileInterpreter:
         mock_response = MagicMock()
         mock_response.text = "ok"
 
-        with patch("knowledge.file_interpreter.genai.Client") as mock_cls:
+        with patch("lexora.knowledge.file_interpreter.genai.Client") as mock_cls:
             mock_generate = mock_cls.return_value.models.generate_content
             mock_generate.return_value = mock_response
             interpreter = GeminiFileInterpreter(model="gemini-2.0-flash", api_key="key")

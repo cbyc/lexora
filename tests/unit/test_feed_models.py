@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from feed.models import DuplicateFeedError, Feed, FeedError, Post
+from lexora.feed.models import DuplicateFeedError, Feed, FeedError, Post
 
 
 class TestFeedModels:

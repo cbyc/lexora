@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from feed.models import DuplicateFeedError, Feed, FeedError, Post
-from feed.service import FeedService
+from lexora.feed.models import DuplicateFeedError, Feed, FeedError, Post
+from lexora.feed.service import FeedService
 
 
 class FakeFeedStore:

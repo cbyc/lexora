@@ -8,7 +8,7 @@ This project uses `uv` for package management and `ruff` for linting.
 
 ```bash
 # Run the API server
-uv run python api.py
+uv run lexora
 
 # Run all tests
 uv run pytest
@@ -28,11 +28,11 @@ uv run ruff format .
 
 ## Architecture
 
-Lexora-Link is a personal knowledge and feed aggregation server. It ingests documents from local notes and Firefox bookmarks, embeds them via the Gemini API, and serves both a semantic search/QA API and an RSS feed reader from a single process, including a static web frontend.
+Lexora is a personal knowledge and feed aggregation server. It ingests documents from local notes and Firefox bookmarks, embeds them via the Gemini API, and serves both a semantic search/QA API and an RSS feed reader from a single process, including a static web frontend.
 
 ### Ports (Abstractions)
 
-`src/ports.py` defines seven `Protocol` classes that form the boundary between the application and infrastructure:
+`src/lexora/ports.py` defines seven `Protocol` classes that form the boundary between the application and infrastructure:
 
 - `Chunker` — `chunk(text) -> list[str]`
 - `EmbeddingModel` — `async encode(text) -> list[float]`
@@ -42,11 +42,28 @@ Lexora-Link is a personal knowledge and feed aggregation server. It ingests docu
 - `FeedFetcher` — `async fetch_feed(...)`, `async validate_feed(...)`, `async fetch_all_feeds(...)`
 - `FileInterpreter` — `async interpret(file_bytes, filename, system_prompt) -> str`
 
-All application logic depends only on these protocols. Concrete implementations are wired at startup in `api.py`.
+All application logic depends only on these protocols. Concrete implementations are wired at startup in `src/lexora/main.py`.
+
+### Package Structure
+
+```
+src/
+└── lexora/              # top-level installable package
+    ├── __init__.py
+    ├── app_state.py
+    ├── config.py
+    ├── models.py
+    ├── ports.py
+    ├── main.py          # composition root + serve() CLI entry point
+    ├── static/          # bundled frontend assets
+    ├── feed/
+    ├── knowledge/
+    └── routers/
+```
 
 ### Domain Packages
 
-- `src/knowledge/` — knowledge retrieval domain
+- `src/lexora/knowledge/` — knowledge retrieval domain
   - `chunker.py` — `SimpleChunker`
   - `embedder.py` — `GeminiEmbeddingModel` (async, wraps `google.genai`)
   - `pipeline.py` — `Pipeline` application orchestrator
@@ -55,7 +72,7 @@ All application logic depends only on these protocols. Concrete implementations 
   - `file_interpreter.py` — `GeminiFileInterpreter` (multimodal PDF extraction via Gemini)
   - `loaders/` — `notes.py`, `bookmarks.py`, `sync_state.py`, `models.py`
 
-- `src/feed/` — RSS/Atom feed domain
+- `src/lexora/feed/` — RSS/Atom feed domain
   - `models.py` — `Feed`, `Post`, `FeedError`, `DuplicateFeedError`
   - `store.py` — `YamlFeedStore`
   - `fetcher.py` — `HttpFeedFetcher` (httpx + feedparser)
@@ -64,38 +81,39 @@ All application logic depends only on these protocols. Concrete implementations 
 
 ### Data Flow
 
-1. **Loaders** (`src/knowledge/loaders/`) read source data and produce `Document` objects.
+1. **Loaders** (`src/lexora/knowledge/loaders/`) read source data and produce `Document` objects.
    - `notes.py`: Async loader. Traverses `data/notes/` recursively via `rglob`. Supports `.txt` (read directly), `.md` (converted to plain text via mistune), and `.pdf` (delegated to `FileInterpreter`). PDF files are skipped with a warning when no interpreter is available. Incremental sync via `data/notes_sync.json`.
    - `bookmarks.py`: Reads Firefox's `places.sqlite`, fetches each URL's content via `trafilatura`, and produces documents. Incremental sync via `data/bm_sync.json`. The DB is copied to a temp file before reading to avoid lock conflicts with Firefox.
    - `sync_state.py`: Shared helper that persists a `last_sync_timestamp` to a JSON file for both loaders.
 
-2. **Chunker** (`src/knowledge/chunker.py`): `SimpleChunker` implements `Chunker`. Splits text into overlapping fixed-size character windows.
+2. **Chunker** (`src/lexora/knowledge/chunker.py`): `SimpleChunker` implements `Chunker`. Splits text into overlapping fixed-size character windows.
 
-3. **Embedder** (`src/knowledge/embedder.py`): `GeminiEmbeddingModel` implements `EmbeddingModel`. Wraps `google.genai`, produces 768-dimensional vectors. `encode` is `async` (uses `asyncio.to_thread` to wrap the synchronous SDK call).
+3. **Embedder** (`src/lexora/knowledge/embedder.py`): `GeminiEmbeddingModel` implements `EmbeddingModel`. Wraps `google.genai`, produces 768-dimensional vectors. `encode` is `async` (uses `asyncio.to_thread` to wrap the synchronous SDK call).
 
-4. **Pipeline** (`src/knowledge/pipeline.py`): Application-layer orchestrator. Accepts the four knowledge ports via constructor injection. `add_docs` and `search_document_store` are `async` because they `await self._embedding_model.encode(...)`.
+4. **Pipeline** (`src/lexora/knowledge/pipeline.py`): Application-layer orchestrator. Accepts the four knowledge ports via constructor injection. `add_docs` and `search_document_store` are `async` because they `await self._embedding_model.encode(...)`.
 
-5. **Vector Store** (`src/knowledge/vector_store.py`): `VectorStore` implements `DocumentStore`. Wraps ChromaDB. Point IDs are deterministic `uuid5` hashes of `source:chunk_index:text`, enabling idempotent upserts. Use the factory classmethods:
+5. **Vector Store** (`src/lexora/knowledge/vector_store.py`): `VectorStore` implements `DocumentStore`. Wraps ChromaDB. Point IDs are deterministic `uuid5` hashes of `source:chunk_index:text`, enabling idempotent upserts. Use the factory classmethods:
    - `VectorStore.in_memory()` — ephemeral, for development and tests (appends a UUID suffix to avoid ChromaDB singleton state leakage)
    - `VectorStore.from_path(path)` — persistent local storage (no server required)
 
-6. **Ask Agent** (`src/knowledge/ask_agent.py`): `PydanticAIAskAgent` implements `AskAgent`. Uses pydantic-ai to run an LLM with structured output (`AskResponse`). Formats retrieved chunks as `SOURCE: <path>\n<text>` blocks and instructs the LLM to answer strictly from the provided context. Provider and model are selected via the `LLM_MODEL` env var; API keys are read from the environment by pydantic-ai automatically.
+6. **Ask Agent** (`src/lexora/knowledge/ask_agent.py`): `PydanticAIAskAgent` implements `AskAgent`. Uses pydantic-ai to run an LLM with structured output (`AskResponse`). Formats retrieved chunks as `SOURCE: <path>\n<text>` blocks and instructs the LLM to answer strictly from the provided context. Provider and model are selected via the `LLM_MODEL` env var; API keys are read from the environment by pydantic-ai automatically.
 
-7. **FeedService** (`src/feed/service.py`): Application-layer orchestrator for the feed domain. Stores `default_range`, `max_posts_per_feed`, and `timeout` as instance attributes so the router doesn't need settings injection.
+7. **FeedService** (`src/lexora/feed/service.py`): Application-layer orchestrator for the feed domain. Stores `default_range`, `max_posts_per_feed`, and `timeout` as instance attributes so the router doesn't need settings injection.
 
-8. **API** (`api.py`): Thin composition root — no route handlers. Constructs all concrete implementations, wraps them in `AppState`, and stores on `app.state`. Includes routers and mounts the static frontend:
+8. **Main** (`src/lexora/main.py`): Thin composition root — no route handlers. Constructs all concrete implementations, wraps them in `AppState`, and stores on `app.state`. Includes routers and mounts the static frontend:
    - `app.include_router(knowledge.router)`
    - `app.include_router(feed.router)`
    - `app.include_router(capabilities.router)`
    - `app.include_router(settings.router)`
-   - `app.mount("/", StaticFiles(directory="static", html=True))`
+   - `app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True))`
+   - `serve()` function is the CLI entry point for `lexora` command.
 
 ### Routers
 
-- `src/routers/knowledge.py` — `POST /api/v1/query`, `/api/v1/ask`, `/api/v1/reindex`
-- `src/routers/feed.py` — `GET /api/v1/rss`, `PUT /api/v1/rss`
-- `src/routers/capabilities.py` — `GET /api/v1/capabilities`
-- `src/routers/settings.py` — `GET /api/v1/settings`, `PUT /api/v1/settings`, `POST /api/v1/settings/browse-directory`
+- `src/lexora/routers/knowledge.py` — `POST /api/v1/query`, `/api/v1/ask`, `/api/v1/reindex`
+- `src/lexora/routers/feed.py` — `GET /api/v1/rss`, `PUT /api/v1/rss`
+- `src/lexora/routers/capabilities.py` — `GET /api/v1/capabilities`
+- `src/lexora/routers/settings.py` — `GET /api/v1/settings`, `PUT /api/v1/settings`, `POST /api/v1/settings/browse-directory`
 
 Each router has its own `get_app_state` dependency function (not shared) to allow independent injection in tests.
 
@@ -109,7 +127,7 @@ Each router has its own `get_app_state` dependency function (not shared) to allo
 
 ### AppState
 
-`src/app_state.py` — `AppState(NamedTuple)` with:
+`src/lexora/app_state.py` — `AppState(NamedTuple)` with:
 - `pipeline: Pipeline | None`
 - `feed_service: FeedService`
 - `file_interpreter: FileInterpreter | None` — wired when `GOOGLE_API_KEY` is set; passed to the notes loader for PDF extraction.
@@ -118,9 +136,9 @@ Stored on `app.state.app_state` at startup.
 
 ### Key Models
 
-- `src/knowledge/loaders/models.py` — `Document(content, source)`: raw loaded document.
-- `src/models.py` — `Chunk(text, source, chunk_index)`; `QueryRequest`; `AskResponse(text, sources)` with a validator that rejects answers with empty sources; `NOT_FOUND` sentinel string; `AddFeedRequest`; `AddFeedResponse`.
-- `src/feed/models.py` — `Feed(name, url)`, `Post(feed_name, title, url, published_at)`, `FeedError(feed_name, url, error)`, `DuplicateFeedError`.
+- `src/lexora/knowledge/loaders/models.py` — `Document(content, source)`: raw loaded document.
+- `src/lexora/models.py` — `Chunk(text, source, chunk_index)`; `QueryRequest`; `AskResponse(text, sources)` with a validator that rejects answers with empty sources; `NOT_FOUND` sentinel string; `AddFeedRequest`; `AddFeedResponse`.
+- `src/lexora/feed/models.py` — `Feed(name, url)`, `Post(feed_name, title, url, published_at)`, `FeedError(feed_name, url, error)`, `DuplicateFeedError`.
 
 ### Testing Approach
 
@@ -129,7 +147,7 @@ Stored on `app.state.app_state` at startup.
 - `VectorStore` tests use `VectorStore.in_memory()`.
 - `PydanticAIAskAgent` tests mock pydantic-ai's `Agent` with `AsyncMock` — no real LLM call.
 - `GeminiEmbeddingModel` tests mock `google.genai.Client` — no real API call.
-- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides` for `knowledge_get_app_state`, `feed_get_app_state`, `capabilities_get_app_state`, plus `unittest.mock.patch` for loader functions. Patch targets use the router module path: `routers.knowledge.load_notes`, etc.
+- API tests (`tests/unit/test_api.py`) use FastAPI's `TestClient` with `app.dependency_overrides` for `knowledge_get_app_state`, `feed_get_app_state`, `capabilities_get_app_state`, plus `unittest.mock.patch` for loader functions. Patch targets use the full module path: `lexora.routers.knowledge.load_notes`, etc.
 - `TestReindexEndpoint` patches `asyncio.create_task` to prevent background task execution; uses an `autouse` fixture to reset `_reindex_task` to `None` between tests.
 - `TestRunReindex` tests `_run_reindex` directly by awaiting it; uses `@pytest.mark.anyio`.
 - Loader tests use `tmp_path` and SQLite fixtures.
@@ -138,7 +156,7 @@ Stored on `app.state.app_state` at startup.
 
 ### Configuration
 
-`src/config.py` defines a `Settings(BaseSettings)` class (via `pydantic-settings`). Settings are read from environment variables or a `.env` file in the project root. The `Settings` instance is created once at module level in `api.py` and injected into route handlers via the `get_settings` FastAPI dependency. The `PUT /api/v1/settings` endpoint writes non-empty values back to `.env`; a server restart is required for changes to take effect.
+`src/lexora/config.py` defines a `Settings(BaseSettings)` class (via `pydantic-settings`). Settings are read from environment variables or a `.env` file in the project root. The `Settings` instance is created once at module level in `src/lexora/main.py` and injected into route handlers via the `get_settings` FastAPI dependency. The `PUT /api/v1/settings` endpoint writes non-empty values back to `.env`; a server restart is required for changes to take effect.
 
 | Env var | Default | Description |
 |---|---|---|
@@ -166,22 +184,22 @@ Stored on `app.state.app_state` at startup.
 
 ### Import Convention
 
-`src/` is the package root, **not** a Python package itself (`src/__init__.py` does not exist). All imports omit the `src.` prefix:
+All imports use the `lexora.` namespace:
 
 ```python
-from knowledge.pipeline import Pipeline   # correct
-from src.knowledge.pipeline import Pipeline  # wrong
+from lexora.knowledge.pipeline import Pipeline   # correct
+from knowledge.pipeline import Pipeline          # wrong
 ```
 
 This is enforced by:
-- `pyproject.toml`: `[tool.hatch.build] dev-mode-dirs = ["src"]` — editable install adds `src/` to `sys.path`
-- `pyproject.toml`: `[tool.pytest.ini_options] pythonpath = [".", "src"]` — pytest adds `src/` to `sys.path`
+- `pyproject.toml`: `[tool.hatch.build.targets.wheel] packages = ["src/lexora"]` — wheel contains the `lexora` package
+- `pyproject.toml`: `[tool.pytest.ini_options] pythonpath = ["src"]` — pytest adds `src/` to `sys.path`
 
-Mock patch strings follow the same convention: `patch("routers.knowledge.load_notes")`, not `patch("src.routers.knowledge.load_notes")`.
+Mock patch strings follow the same convention: `patch("lexora.routers.knowledge.load_notes")`.
 
 ### Notes
 
 - Logging uses structlog's keyword-argument style throughout: `logger.info("event_name", key=value)`.
 - `docs/MONOLITH_PLAN.md` tracks the consolidation plan and implementation history.
 - `docs/LLM_PLAN.md` describes the design and implementation of the `/ask` endpoint.
-- The static frontend lives in `static/`. It is a vanilla JS app with no build step.
+- The static frontend lives in `src/lexora/static/`. It is a vanilla JS app with no build step.

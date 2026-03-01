@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from models import Chunk
+from lexora.models import Chunk
 
 
 @pytest.fixture
